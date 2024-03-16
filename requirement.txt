@@ -1,0 +1,17 @@
+h5py
+matplotlib
+numpy
+pandas
+ffmpeg
+Pillow
+PyYAML
+six
+tqdm
+opencv-python
+tensorboardX
+colorlog
+scipy
+notebook
+av
+joblib
+google_trans_new
