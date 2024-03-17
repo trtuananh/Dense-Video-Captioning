@@ -4,7 +4,6 @@ from __future__ import division, print_function
 from collections import defaultdict
 from itertools import chain
 import json
-import pandas as pd
 import numpy as np
 import torch
 import h5py
@@ -32,7 +31,6 @@ class NewDataset(Dataset):
                 is_training,
                 proposal_type,
                 opt,
-                path, 
                 transforms=None,
                 dataset_type='train'
                 ):
@@ -73,7 +71,8 @@ class NewDataset(Dataset):
                 root_dir=root_dir,
                 clip_length=clip_length,
                 frame_rate=frame_rate,
-                stride=stride
+                stride=stride,
+                transforms=transforms
             )
 
         self.anno = json.load(open(anno_file, 'r'))
@@ -99,10 +98,10 @@ class NewDataset(Dataset):
         return len(self.tsp_dataset)
 
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx):     # get filename, segment, gvf, action-label
         vid_sample = self.tsp_dataset.__getitem__(idx)
-        list_of_vframes = vid_sample['clip']            # list of (C, T, H, W)
-        feature_length = len(list_of_vframes)
+        # list_of_vframes = vid_sample['clip']            # list of (C, T, H, W)
+        feature_length = len(vid_sample['segment'])
         key = vid_sample['filename'][:-4][-13:]
 
         duration = self.anno[key]['duration']
@@ -128,7 +127,7 @@ class NewDataset(Dataset):
         # event_seq_idx = seq_gt_idx = np.expand_dims(gt_idx, 0)
         # lnt_scores = [1.] * len(lnt_featstamps)
 
-        return list_of_vframes, gt_featstamps, action_labels, caption_label, gt_timestamps, duration, captions, key, vid_sample['gvf'], vid_sample['action-label']
+        return vid_sample['segment'], gt_featstamps, action_labels, caption_label, gt_timestamps, duration, captions, key, vid_sample['gvf'], vid_sample['action-label'], vid_sample['filename']
     
 
 
@@ -144,18 +143,18 @@ class NewDataset(Dataset):
 
 def collate_fn(batch):      # 1 clip: (C, clip_length, H, W) -> list(clip)
     batch_size = len(batch)
-    clip_length = batch[0][0][0].shape[1]
-    height = batch[0][0][0].shape[2]
-    width = batch[0][0][0].shape[3]
-    channel = batch[0][0][0].shape[0]
+    # clip_length = self.clip_length
+    # height = batch[0][0][0].shape[2]
+    # width = batch[0][0][0].shape[3]
+    # channel = batch[0][0][0].shape[0]
 
-    list_of_vframes_list, gt_timestamps_list, labels, caption_list, gt_raw_timestamp, raw_duration, raw_caption, key, gvfs, action_labels = zip(*batch)
+    list_of_list_segment, gt_timestamps_list, labels, caption_list, gt_raw_timestamp, raw_duration, raw_caption, key, gvfs, action_labels, filenames = zip(*batch)
 
     # actions_labels: [[]]
     # temporal_region_labels: [[]]
     # gvfs: [tensor]
 
-    max_video_length = max([len(vframes_list) for vframes_list in list_of_vframes_list])
+    max_video_length = max([len(list_segment) for list_segment in list_of_list_segment])
     max_caption_length = max(chain(*[[len(caption) for caption in captions] for captions in caption_list]))
     total_caption_num = sum(chain([len(captions) for captions in caption_list]))
     # total_proposal_num = sum(chain([len(timestamp) for timestamp in timestamps_list]))
@@ -196,7 +195,7 @@ def collate_fn(batch):      # 1 clip: (C, clip_length, H, W) -> list(clip)
     total_proposal_idx = 0
 
     for idx in range(batch_size):
-        video_len = len(list_of_vframes_list[idx])
+        video_len = len(list_of_list_segment[idx]) # len(list_of_vframes_list[idx])
         # proposal_length = len(timestamps_list[idx])
         gt_proposal_length = len(gt_timestamps_list[idx])
 
@@ -227,7 +226,7 @@ def collate_fn(batch):      # 1 clip: (C, clip_length, H, W) -> list(clip)
         # lnt_boxes_tensor[idx, :proposal_length] = torch.tensor([[(ts[1]+ts[0])/(2*raw_duration[idx]), 0.5, (ts[1]-ts[0])/raw_duration[idx], 0.5] for ts in raw_timestamp[idx]]).float()
         gt_boxes_tensor[idx, :gt_proposal_length] = torch.tensor(
             [[(ts[1] + ts[0]) / (2 * raw_duration[idx]), (ts[1] - ts[0]) / raw_duration[idx]] for ts in
-             gt_raw_timestamp[idx]]).float()
+            gt_raw_timestamp[idx]]).float()
 
         for iidx, captioning in enumerate(caption_list[idx]):
             _caption_len = len(captioning)
@@ -240,22 +239,24 @@ def collate_fn(batch):      # 1 clip: (C, clip_length, H, W) -> list(clip)
 
     target = [{'boxes': torch.tensor(
         [[(ts[1] + ts[0]) / (2 * raw_duration[i]), (ts[1] - ts[0]) / raw_duration[i]] for ts in
-         gt_raw_timestamp[i]]).float(),
-               'labels': torch.tensor(labels[i]).long(),
-               'masks': None,
-               'image_id': vid} for i, vid in enumerate(list(key))]
+        gt_raw_timestamp[i]]).float(),
+            'labels': torch.tensor(labels[i]).long(),
+            'masks': None,
+            'image_id': vid} for i, vid in enumerate(list(key))]
 
     dt = {
         "video":
             {
-                "tensor": list_of_vframes_list,  # edit here
+                # "tensor": list_of_vframes_list,  # edit here
+                "segment": list_of_list_segment[0],      # 0 because its batch size is 1
                 "length": video_length,
                 # tensor,      (video_num, 2), the first row is feature length, the second is time length
                 "mask": video_mask,  # tensor,      (video_num, video_len,)
                 "key": list(key),  # list,        (video_num)
                 "target": target,
                 "gvf": gvf_tensor,
-                "action-label": action_label_tensor
+                "action-label": action_label_tensor,
+                "filename": filenames[0]            # 0 because its batch size is 1
                 # "temporal-region-label": temporal_region_label_tensor 
             },
         

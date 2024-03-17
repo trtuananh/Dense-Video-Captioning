@@ -295,7 +295,7 @@ def parse_opts():
     parser.add_argument('--fc_lr', default=0.0001, type=float,
                         help='Fully-connected classifiers learning rate')
 
-    parser.add_argument('--in_batch_size', default=3, type=int,
+    parser.add_argument('--in_batch_size', default=4, type=int,
                         help='Middle batch used for forwarding tsp clips')
  
     # reranking

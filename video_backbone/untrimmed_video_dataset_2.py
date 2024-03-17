@@ -5,11 +5,9 @@ import pandas as pd
 import numpy as np
 import torch
 import h5py
-import cv2
 
 from torch.utils.data import Dataset
-from torchvision.io import read_video, read_image
-from torchvision.utils import save_image
+# from torchvision.io import read_video, read_image
 
 
 class UntrimmedVideoDataset2(Dataset):
@@ -23,7 +21,7 @@ class UntrimmedVideoDataset2(Dataset):
     '''
 
     def __init__(self, csv_filename, root_dir, clip_length, frame_rate,
-            label_columns, label_mappings, stride, path, transforms=None, global_video_features=None, debug=False):
+            label_columns, label_mappings, stride, transforms=None, global_video_features=None, debug=False):
         '''
         Args:
             csv_filename (string): Path to the CSV file with temporal segments information and annotations.
@@ -44,7 +42,6 @@ class UntrimmedVideoDataset2(Dataset):
         df = UntrimmedVideoDataset2._clean_df_and_remove_short_segments(pd.read_csv(csv_filename), clip_length, frame_rate)
         df = UntrimmedVideoDataset2._append_root_dir_to_filenames_and_check_files_exist(df, root_dir)
         self.clip_metadata_df, self.vid_clip_table = UntrimmedVideoDataset2._generate_clips_metadata(df, clip_length, frame_rate, stride)
-        self.path = path
         self.clip_length = clip_length
         self.frame_rate = frame_rate
 
@@ -73,8 +70,9 @@ class UntrimmedVideoDataset2(Dataset):
         sample = {}
         start_row = self.vid_clip_table[idx][0]
         end_row = self.vid_clip_table[idx][1]
-        stack = []
+        # stack = []
         sample['action-label'] = []
+        sample['segment'] = []
         # sample['temporal-region-label'] = []
         for i in range(start_row, end_row + 1):
 
@@ -85,23 +83,24 @@ class UntrimmedVideoDataset2(Dataset):
             clip_length_in_sec = self.clip_length / self.frame_rate
             clip_t_end = clip_t_start + clip_length_in_sec
 
+            sample['segment'].append((clip_t_start, clip_t_end))
             # get a tensor [clip_length, H, W, C] of the video frames between clip_t_start and clip_t_end seconds
-            vframes = UntrimmedVideoDataset2.my_read_video(filename=filename, start_pts=clip_t_start, end_pts=clip_t_end, pts_unit='sec')
-            idxs = UntrimmedVideoDataset2._resample_video_idx(self.clip_length, fps, self.frame_rate)
-            vframes = vframes[idxs][:self.clip_length] # [:self.clip_length] for removing extra frames if isinstance(idxs, slice)
-            if vframes.shape[0] != self.clip_length:
-                raise RuntimeError(f'<EvalVideoDataset>: got clip of length {vframes.shape[0]} != {self.clip_length}.'
-                                   f'filename={filename}, clip_t_start={clip_t_start}, clip_t_end={clip_t_end}, '
-                                   f'fps={fps}')
+            # vframes = UntrimmedVideoDataset2.my_read_video(filename=filename, start_pts=clip_t_start, end_pts=clip_t_end, pts_unit='sec')
+            # idxs = UntrimmedVideoDataset2._resample_video_idx(self.clip_length, fps, self.frame_rate)
+            # vframes = vframes[idxs][:self.clip_length] # [:self.clip_length] for removing extra frames if isinstance(idxs, slice)
+            # if vframes.shape[0] != self.clip_length:
+            #     raise RuntimeError(f'<EvalVideoDataset>: got clip of length {vframes.shape[0]} != {self.clip_length}.'
+            #                        f'filename={filename}, clip_t_start={clip_t_start}, clip_t_end={clip_t_end}, '
+            #                        f'fps={fps}')
 
-            stack.append(vframes)
+            # stack.append(vframes)
             sample['action-label'].append(action_label)
             # sample['temporal-region-label'].append(temporal_region_label)
 
-        sample['clip'] = [self.transforms(vframes) for vframes in stack]        # list of (C, T, H, W) 
-        sample['filename'] = self.clip_metadata_df.iloc[start_row]['filename']
+        # sample['clip'] = [self.transforms(vframes) for vframes in stack]        # list of (C, T, H, W) 
+        filename = self.clip_metadata_df.iloc[start_row]['filename']
+        sample['filename'] = filename
         sample['action-label'] = torch.tensor(sample['action-label'])   
-        # sample['temporal-region-label'] = None
 
         if self.global_video_features:
             f = h5py.File(self.global_video_features, 'r')
@@ -109,8 +108,6 @@ class UntrimmedVideoDataset2(Dataset):
             f.close()
         else:
             sample['gvf'] = None
-
-        # sample['is-last-clip'] = is_last_clip
 
         return sample
 
@@ -354,61 +351,3 @@ class UntrimmedVideoDataset2(Dataset):
     #     return sample
 
 
-
-    @staticmethod
-    def my_read_video(filename, start_pts, end_pts, pts_unit='sec'):
-        """Đọc video sử dụng OpenCV và trả về một tensor PyTorch.
-
-        Args:
-            filename (str): Đường dẫn đến tệp video.
-            start_pts (float): Điểm bắt đầu của video (tính bằng giây).
-            end_pts (float): Điểm kết thúc của video (tính bằng giây).
-            pts_unit (str): Đơn vị của điểm thời gian ('sec' hoặc 'frame').
-
-        Returns:
-            torch.Tensor: Tensor PyTorch chứa các khung hình video.
-        """
-
-        # Đọc video bằng OpenCV
-        cap = cv2.VideoCapture(filename)
-
-        # Tìm vị trí bắt đầu và kết thúc (tính bằng khung hình)
-        if pts_unit == 'sec':
-            start_frame = int(start_pts * cap.get(cv2.CAP_PROP_FPS))
-            end_frame = int(end_pts * cap.get(cv2.CAP_PROP_FPS))
-        elif pts_unit == 'frame':
-            start_frame = int(start_pts)
-            end_frame = int(end_pts)
-        else:
-            raise ValueError("pts_unit phải là 'sec' hoặc 'frame'")
-
-        # Đặt vị trí bắt đầu
-        cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
-
-        # Đọc các khung hình video
-        frames = []
-        while True:
-            # Đọc khung hình tiếp theo
-            ret, frame = cap.read()
-
-            # Kiểm tra xem chúng ta đã đến cuối video chưa
-            if not ret:
-                break
-
-            # Kiểm tra xem chúng ta đã vượt quá điểm kết thúc chưa
-            if cap.get(cv2.CAP_PROP_POS_FRAMES) > end_frame:
-                break
-
-            # Chuyển đổi khung hình thành tensor PyTorch
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame = torch.from_numpy(frame)
-            # frame = frame.permute(2, 0, 1)  # Chuyển đổi từ (H, W, C) sang (C, H, W)
-
-            # Thêm khung hình vào danh sách
-            frames.append(frame)
-
-        # Đóng trình đọc video
-        cap.release()
-
-        # Trả về tensor PyTorch chứa các khung hình video
-        return torch.stack(frames)                  #  (T, H, W, C)

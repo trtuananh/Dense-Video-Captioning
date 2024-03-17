@@ -183,7 +183,7 @@ def main(args):
         is_training=True,
         proposal_type='gt',
         opt=args,
-        transforms=transform_train,
+        transforms=None,
         global_video_feature=None,
         label_columns=args.label_columns,
         label_mappings=label_mappings,
@@ -203,7 +203,7 @@ def main(args):
         is_training=False,
         proposal_type='gt',
         opt=args,
-        transforms=transform_valid,
+        transforms=None,
         global_video_feature=None,
         label_columns=args.label_columns,
         label_mappings=label_mappings,
@@ -226,7 +226,8 @@ def main(args):
 
     print('CREATING MODEL')
 
-    model = NewModel(backbone=args.backbone_tsp, num_classes=[len(l) for l in label_mappings], num_heads=len(args.label_columns), concat_gvf=args.global_video_features is not None, device=device, args=args)
+    model = NewModel(backbone=args.backbone_tsp, num_classes=[len(l) for l in label_mappings], num_heads=len(args.label_columns), concat_gvf=args.global_video_features is not None, 
+                     device=device, args=args, transforms_valid=transform_valid, transforms_train=transform_train)
     model.pdvcModel.translator = dataset_train.translator
 
 
