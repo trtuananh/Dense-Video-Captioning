@@ -81,6 +81,7 @@ class EvalVideoDataset2(Dataset):
         sample['filename'] = filename
         sample['action-label'] = None
         sample['gvf'] = None 
+        sample['temporal-action-label']
 
         return sample
 

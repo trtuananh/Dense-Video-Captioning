@@ -98,7 +98,7 @@ class NewDataset(Dataset):
         return len(self.tsp_dataset)
 
 
-    def __getitem__(self, idx):     # get filename, segment, gvf, action-label
+    def __getitem__(self, idx):     # get filename, segment, gvf, action-label, temporal-region-label
         vid_sample = self.tsp_dataset.__getitem__(idx)
         # list_of_vframes = vid_sample['clip']            # list of (C, T, H, W)
         feature_length = len(vid_sample['segment'])
@@ -127,7 +127,7 @@ class NewDataset(Dataset):
         # event_seq_idx = seq_gt_idx = np.expand_dims(gt_idx, 0)
         # lnt_scores = [1.] * len(lnt_featstamps)
 
-        return vid_sample['segment'], gt_featstamps, action_labels, caption_label, gt_timestamps, duration, captions, key, vid_sample['gvf'], vid_sample['action-label'], vid_sample['filename']
+        return vid_sample['segment'], gt_featstamps, action_labels, caption_label, gt_timestamps, duration, captions, key, vid_sample['gvf'], vid_sample['action-label'], vid_sample['filename'], vid_sample['temporal-region-label']
     
 
 
@@ -141,14 +141,14 @@ class NewDataset(Dataset):
         return featstamps.tolist()
 
 
-def collate_fn(batch):      # 1 clip: (C, clip_length, H, W) -> list(clip)
+def collate_fn(batch):      # 1 clip: [(start, end), ...]
     batch_size = len(batch)
     # clip_length = self.clip_length
     # height = batch[0][0][0].shape[2]
     # width = batch[0][0][0].shape[3]
     # channel = batch[0][0][0].shape[0]
 
-    list_of_list_segment, gt_timestamps_list, labels, caption_list, gt_raw_timestamp, raw_duration, raw_caption, key, gvfs, action_labels, filenames = zip(*batch)
+    list_of_list_segment, gt_timestamps_list, labels, caption_list, gt_raw_timestamp, raw_duration, raw_caption, key, gvfs, action_labels, filenames, temporal_region_labels = zip(*batch)
 
     # actions_labels: [[]]
     # temporal_region_labels: [[]]
@@ -174,7 +174,7 @@ def collate_fn(batch):      # 1 clip: (C, clip_length, H, W) -> list(clip)
 
     gvf_tensor = gvfs[0]        # it can be None
     action_label_tensor = action_labels[0]          # it can be None
-    # temporal_region_label_tensor = temporal_region_labels[0]        # it can be None
+    temporal_region_label_tensor = temporal_region_labels[0]        # it can be None
     # proposal_gather_idx = torch.LongTensor(total_proposal_num).zero_()
 
     # max_proposal_num = max(len(x) for x in timestamps_list)
@@ -256,8 +256,8 @@ def collate_fn(batch):      # 1 clip: (C, clip_length, H, W) -> list(clip)
                 "target": target,
                 "gvf": gvf_tensor,
                 "action-label": action_label_tensor,
-                "filename": filenames[0]            # 0 because its batch size is 1
-                # "temporal-region-label": temporal_region_label_tensor 
+                "filename": filenames[0],            # 0 because its batch size is 1
+                "temporal-region-label": temporal_region_label_tensor 
             },
         
 

@@ -10,7 +10,6 @@ import torchvision
 import os
 import sys
 import collections
-import datetime
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -19,9 +18,10 @@ from torch.utils.data import DataLoader
 from os.path import dirname, abspath
 from video_backbone.TSP.common import utils
 from video_backbone.TSP.common import transforms as T
-from torchvision.datasets.samplers import DistributedSampler
+# from torchvision.datasets.samplers import DistributedSampler
 from itertools import chain
-from video_backbone.TSP.common.scheduler import WarmupMultiStepLR
+# from video_backbone.TSP.common.scheduler import WarmupMultiStepLR
+from TSPmodel import Model
 from NewModel import NewModel
 from NewDataset import NewDataset 
 
@@ -256,7 +256,8 @@ def main(args):
     else:
         params = [
             {'params': model.tspModel.features.parameters(), 'lr': args.backbone_lr * args.world_size, 'name': 'backbone'},
-            {'params': model.tspModel.fc1.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc1'}
+            {'params': model.tspModel.fc1.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc1'},
+            {'params': model.tspModel.fc2.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc2'}
         ]
 
 
@@ -270,11 +271,12 @@ def main(args):
         pretrained_state_dict_tsp['fc1.bias'] = state_dict['fc1.bias']
         pretrained_state_dict_tsp['fc2.bias'] = state_dict['fc2.bias']
         model.tspModel.load_state_dict(pretrained_state_dict_tsp)
-        model.tspModel.fc2 = None
+        model.tspModel.fc2 = Model._build_fc(model.tspModel.feature_size, model.tspModel.temporal_region_num_classes)
 
         params = [
             {'params': model.tspModel.features.parameters(), 'lr': args.backbone_lr * args.world_size, 'name': 'backbone'},
-            {'params': model.tspModel.fc1.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc1'}
+            {'params': model.tspModel.fc1.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc1'},
+            {'params': model.tspModel.fc2.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc2'}
         ]
 
         # optimizer = torch.optim.SGD(
@@ -434,14 +436,14 @@ def main(args):
             _, loss, tsp_head_loss = model.forward(dt, args.loss_alphas, eval_mode=False)
 
             final_loss = sum(loss[k] * weight_dict[k] for k in loss.keys() if k in weight_dict)
-            (final_loss + 0.2 * tsp_head_loss).backward()
+            (final_loss + 0.25 * tsp_head_loss).backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
 
             optimizer.step()
 
             for loss_k,loss_v in loss.items():
                 loss_sum[loss_k] = loss_sum.get(loss_k, 0)+ loss_v.item()
-            loss_sum['total_loss'] = loss_sum.get('total_loss', 0) + final_loss.item() + tsp_head_loss.item() * 0.2
+            loss_sum['total_loss'] = loss_sum.get('total_loss', 0) + final_loss.item() + tsp_head_loss.item() * 0.25
 
             if args.device=='cuda':
                 torch.cuda.synchronize()

@@ -39,12 +39,16 @@ class NewModel(nn.Module):
             x = x[self.args.in_batch_size:]
             
             if not eval_mode:
-                middle_target = dt['video_action-label'][:self.args.in_batch_size].view(1).to(self.device)
-                head_loss = self.tspCriterion(logits[0], middle_target)
-                los += alphas[0] * head_loss
+                middle_target = [dt[f'video_{col}'][:self.args.in_batch_size].view(1).to(self.device) for col in self.args.label_columns]
+                # middle_target = dt['video_action-label'][:self.args.in_batch_size].view(1).to(self.device)
 
-                # dt['video_action-label'].pop(0)
-                dt['video_action-label'] = dt['video_action-label'][self.args.in_batch_size:]
+                for outpt, target, alpha in zip(logits, middle_target, alphas):
+                    head_loss = self.tspCriterion(outpt, target)
+                    los += alpha * head_loss
+
+                # remove in_batch_size label
+                for col in self.args.label_columns:
+                    dt[f'video_{col}'] = dt[f'video_{col}'][self.args.in_batch_size:]
 
         
         
@@ -58,6 +62,7 @@ class NewModel(nn.Module):
 
         del dt['video_action-label']
         del dt['video_segment']
+        del dt['video_temporal-region-label']
         
         output, loss = self.pdvcModel.forward(dt= dt, criterion= self.pdvcCriterion, transformer_input_type= self.args.transformer_input_type, eval_mode= eval_mode)
         

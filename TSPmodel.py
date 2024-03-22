@@ -25,14 +25,16 @@ class Model(nn.Module):
         self.num_classes = num_classes
         self.num_heads = num_heads
         self.concat_gvf = concat_gvf
+        self.action_num_classes = num_classes[0]
+        self.temporal_region_num_classes = num_classes[1]
 
         self.features, self.feature_size = Model._build_feature_backbone(backbone, progress, **kwargs)
         
         if self.num_heads == 1:
-            self.fc = Model._build_fc(self.feature_size, num_classes[0])
+            self.fc = Model._build_fc(self.feature_size, self.action_num_classes)
         else:
-            self.fc1 = Model._build_fc(self.feature_size, num_classes[0])
-            self.fc2 = Model._build_fc(2 * self.feature_size if self.concat_gvf else self.feature_size, num_classes[1])
+            self.fc1 = Model._build_fc(self.feature_size, self.action_num_classes)
+            self.fc2 = Model._build_fc(self.feature_size, self.temporal_region_num_classes)
 
             if self.backbone == 'mvit_v2_s':
                 self.fc2 = Model._build_fc(self.feature_size + 512 if self.concat_gvf else self.feature_size, num_classes[1])
@@ -45,7 +47,7 @@ class Model(nn.Module):
             logits = [self.fc(features)]
         else:
             if gvf is None and return_features:
-                return [self.fc1(features)], features
+                return [self.fc1(features), self.fc2(features)], features
             
             
             if self.concat_gvf:

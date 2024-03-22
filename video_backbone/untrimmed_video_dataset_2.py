@@ -73,11 +73,11 @@ class UntrimmedVideoDataset2(Dataset):
         # stack = []
         sample['action-label'] = []
         sample['segment'] = []
-        # sample['temporal-region-label'] = []
+        sample['temporal-region-label'] = []
         for i in range(start_row, end_row + 1):
 
             row = self.clip_metadata_df.iloc[i]
-            filename, fps, clip_t_start, action_label = row['filename'], row['fps'], row['clip-t-start'], row['action-label']
+            filename, fps, clip_t_start, action_label, temporal_region_label = row['filename'], row['fps'], row['clip-t-start'], row['action-label'], row['temporal-region-label']
 
             # compute clip_t_start and clip_t_end
             clip_length_in_sec = self.clip_length / self.frame_rate
@@ -95,12 +95,13 @@ class UntrimmedVideoDataset2(Dataset):
 
             # stack.append(vframes)
             sample['action-label'].append(action_label)
-            # sample['temporal-region-label'].append(temporal_region_label)
+            sample['temporal-region-label'].append(temporal_region_label)
 
         # sample['clip'] = [self.transforms(vframes) for vframes in stack]        # list of (C, T, H, W) 
         filename = self.clip_metadata_df.iloc[start_row]['filename']
         sample['filename'] = filename
         sample['action-label'] = torch.tensor(sample['action-label'])   
+        sample['temporal-region-label'] = torch.tensor(sample['temporal-region-label'])
 
         if self.global_video_features:
             f = h5py.File(self.global_video_features, 'r')
