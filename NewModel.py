@@ -74,7 +74,7 @@ class NewModel(nn.Module):
 
         for clip_t_start, clip_t_end in segments:
             # get a tensor [clip_length, H, W, C] of the video frames between clip_t_start and clip_t_end seconds
-            vframes = read_video(filename=filename, start_pts=clip_t_start, end_pts=clip_t_end, pts_unit='sec')
+            vframes, _, _ = read_video(filename=filename, start_pts=clip_t_start, end_pts=clip_t_end, pts_unit='sec')
             
             if eval_mode:
                 vframes = self.transforms_valid(vframes)
