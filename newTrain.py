@@ -86,12 +86,15 @@ def main(args):
 
     saved_info = {'best': {}, 'last': {}, 'history': {}, 'eval_history': {}}
 
+    # loading previous saved_info
     if args.start_from:
         args.pretrain = False
         infos_path = os.path.join(save_folder, 'info.json')
         with open(infos_path) as f:
             logger.info('Load info from {}'.format(infos_path))
             saved_info = json.load(f)
+
+            # changing args to previous args
             prev_opt = saved_info[args.start_from_mode[:4]]['opt']
 
             exclude_opt = ['start_from', 'start_from_mode', 'pretrain']
@@ -125,16 +128,18 @@ def main(args):
     valid_dir = os.path.join(args.root_dir, args.valid_subdir)
 
     print('LOADING DATA')
+    # Loading labels
     label_mappings = []
     for label_mapping_json in args.label_mapping_jsons:
         with open(label_mapping_json) as fobj:
             label_mapping = json.load(fobj)
             label_mappings.append(dict(zip(label_mapping, range(len(label_mapping)))))
 
-
+    # is there a need to reset this mean and std when training with anet?
     normalize = T.Normalize(mean=[0.43216, 0.394666, 0.37645],
                             std=[0.22803, 0.22145, 0.216989])
-    
+
+    # setup transform for data
     transform_train = None
     transform_valid = None
     if args.backbone_tsp != 'mvit_v2_s':
