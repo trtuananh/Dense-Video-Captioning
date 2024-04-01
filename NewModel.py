@@ -33,14 +33,14 @@ class NewModel(nn.Module):
         los = 0
         
         while(len(x) > 0):
-            clips = self.get_clips(x[:self.args.in_batch_size], filename, dt['fps'], eval_mode).to(self.device)
+            clips = self.get_clips(x[:self.args.in_batch_size], filename, dt['video_fps'], eval_mode).to(self.device)
             logits, clip_features = self.tspModel.forward(clips, gvf=None, return_features=True)     # (in_batch_size, 768)
             
             video_feature.append(clip_features.detach())
             x = x[self.args.in_batch_size:]
             
             if not eval_mode:
-                middle_target = [dt[f'video_{col}'][:self.args.in_batch_size].view(1).to(self.device) for col in self.args.label_columns]
+                middle_target = [dt[f'video_{col}'][:self.args.in_batch_size].to(self.device) for col in self.args.label_columns]
                 # middle_target = dt['video_action-label'][:self.args.in_batch_size].view(1).to(self.device)
 
                 for outpt, target, alpha in zip(logits, middle_target, alphas):

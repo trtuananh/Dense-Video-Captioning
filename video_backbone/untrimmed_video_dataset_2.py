@@ -197,7 +197,7 @@ class UntrimmedVideoDataset2(Dataset):
 
             if row['filename'] != df.loc[i + 1, 'filename']:
                 total_frames_after_resampling = int(row['video-frames'] * (float(frame_rate) / row['fps']))
-                idxs = UntrimmedVideoDataset2._resample_video_idx(total_frames_after_resampling, row['fps'], frame_rate)
+                idxs = _resample_video_idx(total_frames_after_resampling, row['fps'], frame_rate)
                 if isinstance(idxs, slice):
                     frame_idxs = np.arange(row['video-frames'])[idxs]
                 else:
