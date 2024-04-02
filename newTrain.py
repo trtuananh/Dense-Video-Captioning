@@ -256,8 +256,8 @@ def main(args):
     else:
         params = [
             {'params': model.tspModel.features.parameters(), 'lr': args.backbone_lr * args.world_size, 'name': 'backbone'},
-            {'params': model.tspModel.fc1.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc1'},
-            {'params': model.tspModel.fc2.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc2'}
+            # {'params': model.tspModel.fc1.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc1'},
+            # {'params': model.tspModel.fc2.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc2'}
         ]
 
 
@@ -271,12 +271,13 @@ def main(args):
         pretrained_state_dict_tsp['fc1.bias'] = state_dict['fc1.bias']
         pretrained_state_dict_tsp['fc2.bias'] = state_dict['fc2.bias']
         model.tspModel.load_state_dict(pretrained_state_dict_tsp)
-        model.tspModel.fc2 = Model._build_fc(model.tspModel.feature_size, model.tspModel.temporal_region_num_classes)
+        model.tspModel.fc2 = None
+        model.tspModel.fc1 = None
 
         params = [
             {'params': model.tspModel.features.parameters(), 'lr': args.backbone_lr * args.world_size, 'name': 'backbone'},
-            {'params': model.tspModel.fc1.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc1'},
-            {'params': model.tspModel.fc2.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc2'}
+            # {'params': model.tspModel.fc1.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc1'},
+            # {'params': model.tspModel.fc2.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc2'}
         ]
 
         # optimizer = torch.optim.SGD(
@@ -353,7 +354,8 @@ def main(args):
 
 
     if args.start_from and (not args.pretrain):
-        model.tspModel.fc2 = Model._build_fc(model.tspModel.feature_size, model.tspModel.temporal_region_num_classes)
+        model.tspModel.fc2 = None
+        model.tspModel.fc1 = None
         if args.start_from_mode == 'best':
             model_pth = torch.load(os.path.join(save_folder, 'model-best.pth'))
         elif args.start_from_mode == 'last':

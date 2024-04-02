@@ -23,6 +23,8 @@ class NewModel(nn.Module):
     def forward(self, x, alphas=None, eval_mode=False):
 
         del x['video_gvf']
+        del x['video_action-label']
+        del x['video_temporal-region-label']
         
         dt = x
         
@@ -39,17 +41,17 @@ class NewModel(nn.Module):
             video_feature.append(clip_features.detach())
             x = x[self.args.in_batch_size:]
             
-            if not eval_mode:
-                middle_target = [dt[f'video_{col}'][:self.args.in_batch_size].to(self.device) for col in self.args.label_columns]
-                # middle_target = dt['video_action-label'][:self.args.in_batch_size].view(1).to(self.device)
+            # if not eval_mode:
+            #     middle_target = [dt[f'video_{col}'][:self.args.in_batch_size].to(self.device) for col in self.args.label_columns]
+            #     # middle_target = dt['video_action-label'][:self.args.in_batch_size].view(1).to(self.device)
 
-                for outpt, target, alpha in zip(logits, middle_target, alphas):
-                    head_loss = self.tspCriterion(outpt, target)
-                    los += alpha * head_loss
+            #     for outpt, target, alpha in zip(logits, middle_target, alphas):
+            #         head_loss = self.tspCriterion(outpt, target)
+            #         los += alpha * head_loss
 
-                # remove in_batch_size label
-                for col in self.args.label_columns:
-                    dt[f'video_{col}'] = dt[f'video_{col}'][self.args.in_batch_size:]
+            #     # remove in_batch_size label
+            #     for col in self.args.label_columns:
+            #         dt[f'video_{col}'] = dt[f'video_{col}'][self.args.in_batch_size:]
 
         
         
@@ -61,9 +63,7 @@ class NewModel(nn.Module):
                 param.grad = None
                 
 
-        del dt['video_action-label']
         del dt['video_segment']
-        del dt['video_temporal-region-label']
         
         output, loss = self.pdvcModel.forward(dt= dt, criterion= self.pdvcCriterion, transformer_input_type= self.args.transformer_input_type, eval_mode= eval_mode)
         
