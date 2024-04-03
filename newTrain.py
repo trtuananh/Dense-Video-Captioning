@@ -228,7 +228,7 @@ def main(args):
     data_loader_valid = DataLoader(
         dataset_valid, batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True, collate_fn=collate_fn)
-
+     
     print('CREATING MODEL')
 
     model = NewModel(backbone=args.backbone_tsp, num_classes=[len(l) for l in label_mappings], num_heads=len(args.label_columns), concat_gvf=args.global_video_features is not None, 
@@ -261,8 +261,8 @@ def main(args):
     else:
         params = [
             {'params': model.tspModel.features.parameters(), 'lr': args.backbone_lr * args.world_size, 'name': 'backbone'},
-            {'params': model.tspModel.fc1.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc1'},
-            {'params': model.tspModel.fc2.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc2'}
+            # {'params': model.tspModel.fc1.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc1'},
+            # {'params': model.tspModel.fc2.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc2'}
         ]
 
 
@@ -276,12 +276,13 @@ def main(args):
         pretrained_state_dict_tsp['fc1.bias'] = state_dict['fc1.bias']
         pretrained_state_dict_tsp['fc2.bias'] = state_dict['fc2.bias']
         model.tspModel.load_state_dict(pretrained_state_dict_tsp)
-        model.tspModel.fc2 = Model._build_fc(model.tspModel.feature_size, model.tspModel.temporal_region_num_classes)
+        model.tspModel.fc2 = None
+        model.tspModel.fc1 = None
 
         params = [
             {'params': model.tspModel.features.parameters(), 'lr': args.backbone_lr * args.world_size, 'name': 'backbone'},
-            {'params': model.tspModel.fc1.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc1'},
-            {'params': model.tspModel.fc2.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc2'}
+            # {'params': model.tspModel.fc1.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc1'},
+            # {'params': model.tspModel.fc2.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc2'}
         ]
 
         # optimizer = torch.optim.SGD(
@@ -356,9 +357,11 @@ def main(args):
     #     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
     #     model_without_ddp = model.module
 
-
+    visited_videos = set()
+    first_start = False
     if args.start_from and (not args.pretrain):
-        model.tspModel.fc2 = Model._build_fc(model.tspModel.feature_size, model.tspModel.temporal_region_num_classes)
+        model.tspModel.fc2 = None
+        model.tspModel.fc1 = None
         if args.start_from_mode == 'best':
             model_pth = torch.load(os.path.join(save_folder, 'model-best.pth'))
         elif args.start_from_mode == 'last':
@@ -370,6 +373,8 @@ def main(args):
         model.load_state_dict(model_pth['model'])
         optimizer.load_state_dict(model_pth['optimizer'])
         lr_scheduler.step(epoch-1)
+        visited_videos = model_pth['visited_videos']
+        first_start = True
         # lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
         # args.start_epoch = checkpoint['epoch'] + 1
 
@@ -420,6 +425,9 @@ def main(args):
         
         # Batch-level iteration
         for dt in tqdm(data_loader_train, disable=args.disable_tqdm):
+            if first_start and dt['video_filename'] in visited_videos:
+                continue
+            
             if args.device=='cuda':
                 torch.cuda.synchronize(args.device)
             if args.debug:
@@ -442,14 +450,14 @@ def main(args):
             _, loss, tsp_head_loss = model.forward(dt, args.loss_alphas, eval_mode=False)
 
             final_loss = sum(loss[k] * weight_dict[k] for k in loss.keys() if k in weight_dict)
-            (final_loss + 0.25 * tsp_head_loss).backward()
+            (final_loss).backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
 
             optimizer.step()
 
             for loss_k,loss_v in loss.items():
                 loss_sum[loss_k] = loss_sum.get(loss_k, 0)+ loss_v.item()
-            loss_sum['total_loss'] = loss_sum.get('total_loss', 0) + final_loss.item() + tsp_head_loss.item() * 0.25
+            loss_sum['total_loss'] = loss_sum.get('total_loss', 0) + final_loss.item()
 
             if args.device=='cuda':
                 torch.cuda.synchronize()
@@ -458,6 +466,21 @@ def main(args):
 
             if args.debug:
                 losses_log_every = 6
+            
+            visited_videos.add(dt['video_filename'])
+            saved_pth = {'epoch': epoch,
+                         'model': model.state_dict(),
+                         'optimizer': optimizer.state_dict(), 
+                         'visited_videos': visited_videos
+                        }
+
+            if args.save_all_checkpoint:
+                checkpoint_path = os.path.join(save_folder, 'model_iter_{}.pth'.format(iteration))
+            else:
+                checkpoint_path = os.path.join(save_folder, 'model-last.pth')
+
+            torch.save(saved_pth, checkpoint_path)
+
 
             if iteration % losses_log_every == 0:
                 end = time.time()
@@ -479,20 +502,23 @@ def main(args):
                 bad_video_num = 0
                 torch.cuda.empty_cache()
 
+        first_start = False
+        visited_videos = set()
         # evaluation
+        # if (epoch % args.save_checkpoint_every == 0) and (epoch >= args.min_epoch_when_save):
         if (epoch % args.save_checkpoint_every == 0) and (epoch >= args.min_epoch_when_save):
 
             # Save model
-            saved_pth = {'epoch': epoch,
-                         'model': model.state_dict(),
-                         'optimizer': optimizer.state_dict(), }
+            # saved_pth = {'epoch': epoch,
+            #              'model': model.state_dict(),
+            #              'optimizer': optimizer.state_dict(), }
 
-            if args.save_all_checkpoint:
-                checkpoint_path = os.path.join(save_folder, 'model_iter_{}.pth'.format(iteration))
-            else:
-                checkpoint_path = os.path.join(save_folder, 'model-last.pth')
+            # if args.save_all_checkpoint:
+            #     checkpoint_path = os.path.join(save_folder, 'model_iter_{}.pth'.format(iteration))
+            # else:
+            #     checkpoint_path = os.path.join(save_folder, 'model-last.pth')
 
-            torch.save(saved_pth, checkpoint_path)
+            # torch.save(saved_pth, checkpoint_path)
 
             model.eval()
             result_json_path = os.path.join(save_folder, 'prediction',
