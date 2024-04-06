@@ -38,7 +38,7 @@ class NewModel(nn.Module):
             clips = self.get_clips(x[:self.args.in_batch_size], filename, dt['video_fps'], eval_mode).to(self.device)
             logits, clip_features = self.tspModel.forward(clips, gvf=None, return_features=True)     # (in_batch_size, 768)
             
-            video_feature.append(clip_features.detach())
+            video_feature.append(clip_features.detach().cpu())
             x = x[self.args.in_batch_size:]
             
             # if not eval_mode:
@@ -56,7 +56,7 @@ class NewModel(nn.Module):
         
         
         # dt['video_tensor'] = torch.vstack(video_feature).view(1, T, 768) # (1, T, 768)
-        dt['video_tensor'] = torch.vstack(video_feature).unsqueeze(0)
+        dt['video_tensor'] = torch.vstack(video_feature).to(self.device).unsqueeze(0)
         
         if not eval_mode:
             for param in self.tspModel.parameters():
