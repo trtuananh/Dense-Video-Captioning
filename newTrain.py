@@ -510,12 +510,14 @@ def main(args):
         cao = 0
         # evaluation
         # if (epoch % args.save_checkpoint_every == 0) and (epoch >= args.min_epoch_when_save):
-        if (epoch % args.save_checkpoint_every == 0) and (epoch >= args.min_epoch_when_save):
+        if epoch >= args.min_epoch_when_save:
 
             # Save model
-            # saved_pth = {'epoch': epoch,
-            #              'model': model.state_dict(),
-            #              'optimizer': optimizer.state_dict(), }
+            saved_pth = {'epoch': epoch,
+                         'model': model.state_dict(),
+                         'optimizer': optimizer.state_dict(), 
+                         'visited_videos': visited_videos
+                        }
 
             # if args.save_all_checkpoint:
             #     checkpoint_path = os.path.join(save_folder, 'model_iter_{}.pth'.format(iteration))
