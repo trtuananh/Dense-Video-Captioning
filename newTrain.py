@@ -424,7 +424,7 @@ def main(args):
         # Batch-level iteration
         cao = 0
         for dt in tqdm(data_loader_train, disable=args.disable_tqdm):
-            if first_start and dt['video_filename'] in visited_videos:
+            if first_start and dt['video_filename'][-17:] in visited_videos:
                 continue
             
             if args.device=='cuda':
@@ -466,7 +466,7 @@ def main(args):
             if args.debug:
                 losses_log_every = 6
             
-            visited_videos.add(dt['video_filename'])
+            visited_videos.add(dt['video_filename'][-17:])
             if cao % 5 == 0:
                 saved_pth = {'epoch': epoch,
                              'model': model.state_dict(),
@@ -480,8 +480,8 @@ def main(args):
                     checkpoint_path = os.path.join(save_folder, 'model-last.pth')
     
                 torch.save(saved_pth, checkpoint_path)
-                torch.cuda.empty_cache()
-        
+                
+            torch.cuda.empty_cache()
             cao += 1
 
 
@@ -505,6 +505,7 @@ def main(args):
                 bad_video_num = 0
                 torch.cuda.empty_cache()
 
+        # xong 1 epoch
         first_start = False
         visited_videos = set()
         cao = 0
@@ -515,9 +516,7 @@ def main(args):
             # Save model
             saved_pth = {'epoch': epoch,
                          'model': model.state_dict(),
-                         'optimizer': optimizer.state_dict(), 
-                         'visited_videos': visited_videos
-                        }
+                         'optimizer': optimizer.state_dict(), 'visited_videos': visited_videos}
 
             # if args.save_all_checkpoint:
             #     checkpoint_path = os.path.join(save_folder, 'model_iter_{}.pth'.format(iteration))
