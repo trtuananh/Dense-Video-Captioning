@@ -446,11 +446,11 @@ def main(args):
 
             # pdvc forward
             # output, loss = model(dt, criterion, opt.transformer_input_type)
-            _, loss, tsp_head_loss = model.forward(dt, args.loss_alphas, eval_mode=False)
+            _, loss, tsp_head_loss = model.forward(dt, args.loss_alphas, eval_mode=False, weight_dict=weight_dict)
 
             final_loss = sum(loss[k] * weight_dict[k] for k in loss.keys() if k in weight_dict)
-            (final_loss).backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+            # (final_loss).backward()
+            # torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
 
             optimizer.step()
 
