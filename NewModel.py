@@ -1,4 +1,6 @@
 import torch
+import numpy as np
+import os
 from torch import nn
 from pdvc.pdvc import build
 from TSPmodel import Model
@@ -20,52 +22,47 @@ class NewModel(nn.Module):
         self.transforms_valid = transforms_valid
 
 
-    def forward(self, x, alphas=None, eval_mode=False):
+    def forward(self, x, alphas=None, eval_mode=False, weight_dict=None):
 
         del x['video_gvf']
         del x['video_action-label']
         del x['video_temporal-region-label']
         
         dt = x
+
+        in_batch_size = self.args.in_batch_size
+        if eval_mode:
+            in_batch_size = self.args.in_batch_size_valid
+
         
         x = dt['video_segment']     # [(start, end), ...]
-        video_feature = []
         T = len(x)
         filename = dt['video_filename']
         los = 0
+        ptr = 0
+        vid_feature = self.get_vid_features(filename).to(self.device)
         
-        while(len(x) > 0):
-            clips = self.get_clips(x[:self.args.in_batch_size], filename, dt['video_fps'], eval_mode).to(self.device)
-            logits, clip_features = self.tspModel.forward(clips, gvf=None, return_features=True)     # (in_batch_size, 768)
+        for i in range(0, vid_feature.shape[0], in_batch_size):
+            clips = self.get_clips(x[i : i + in_batch_size], filename, dt['video_fps'], eval_mode).to(self.device)
+            _, clip_features = self.tspModel.forward(clips, gvf=None, return_features=True)     # (in_batch_size, 768)
             
-            video_feature.append(clip_features.detach())
-            x = x[self.args.in_batch_size:]
-            
-            # if not eval_mode:
-            #     middle_target = [dt[f'video_{col}'][:self.args.in_batch_size].to(self.device) for col in self.args.label_columns]
-            #     # middle_target = dt['video_action-label'][:self.args.in_batch_size].view(1).to(self.device)
-
-            #     for outpt, target, alpha in zip(logits, middle_target, alphas):
-            #         head_loss = self.tspCriterion(outpt, target)
-            #         los += alpha * head_loss
-
-            #     # remove in_batch_size label
-            #     for col in self.args.label_columns:
-            #         dt[f'video_{col}'] = dt[f'video_{col}'][self.args.in_batch_size:]
-
+            vid_feature[i : i + in_batch_size] = clip_features
         
-        
-        # dt['video_tensor'] = torch.vstack(video_feature).view(1, T, 768) # (1, T, 768)
-        dt['video_tensor'] = torch.vstack(video_feature).unsqueeze(0)
-        
-        if not eval_mode:
-            for param in self.tspModel.parameters():
-                param.grad = None
-                
+            dt['video_tensor'] = vid_feature
+
+            self.pdvcModel.eval()
+            output, loss = self.pdvcModel.forward(dt= dt, criterion= self.pdvcCriterion, transformer_input_type= self.args.transformer_input_type, eval_mode= eval_mode)
+
+            if not eval_mode:
+                for param in self.tspModel.parameters():
+                    param.grad = None
+
+                final_loss = sum(loss[k] * weight_dict[k] for k in loss.keys() if k in weight_dict)
+                final_loss.backward()
+                nn.utils.clip_grad_norm_(self.parameters(), self.args.grad_clip)
+
 
         del dt['video_segment']
-        
-        output, loss = self.pdvcModel.forward(dt= dt, criterion= self.pdvcCriterion, transformer_input_type= self.args.transformer_input_type, eval_mode= eval_mode)
         
         return output, loss, los
         
@@ -88,3 +85,11 @@ class NewModel(nn.Module):
             lst.append(vframes)
 
         return torch.stack(lst)         # (in_batch_size, C, clip_length, H, W)
+
+
+    def get_vid_features(self, filename):
+            filename = os.path.join('data/yc2/features/tsp_mvitv2', filename[-17:-4] + '.npy')
+            vid_features = np.load(filename)
+            vid_features = torch.from_numpy(vid_features)     # (T, 768)
+
+            return vid_features     # (T, 768)

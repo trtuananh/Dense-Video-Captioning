@@ -8,8 +8,10 @@ DATA_PATH=../data/yc2/train
 METADATA_CSV_FILENAME=../data/yc2/yc2_train_metadata.csv
 
 
-LOCAL_CHECKPOINT=../data/yc2/r2plus1d_34-tac_on_kinetics.pth
-BACKBONE=r2plus1d_34
+# LOCAL_CHECKPOINT=../data/yc2/r2plus1d_34-tac_on_kinetics.pth
+LOCAL_CHECKPOINT=../../../save/yc2_newModel_mvit_3/model-last.pth
+# BACKBONE=r2plus1d_34
+BACKBONE=mvit_v2_s
 
 # Choose the stride between clips, e.g. 16 for non-overlapping clips and 1 for dense overlapping clips
 STRIDE=16 

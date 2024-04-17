@@ -17,7 +17,7 @@ from eval_video_dataset import EvalVideoDataset
 sys.path.insert(0, '..')
 from common import utils
 from common import transforms as T
-from models.model import Model
+from NewModel import NewModel
 
 
 MODEL_URLS = {
@@ -125,15 +125,22 @@ def main(args):
             )['model']
 
     # model with a dummy classifier layer
-    model = Model(backbone=args.backbone, num_classes=[1], num_heads=1, concat_gvf=False)
-    model.to(device)
+    model = NewModel(backbone=args.backbone, num_classes=[1 , 1], num_heads=2, concat_gvf=args.global_video_features is not None, 
+                     device=device, args=args, transforms_valid=transform, transforms_train=transform)
+    # model.to(device)
 
     # remove the classifier layers from the pretrained model and load the backbone weights
-    pretrained_state_dict = {k: v for k,v in pretrained_state_dict.items() if 'fc' not in k}
-    state_dict = model.state_dict()
-    pretrained_state_dict['fc.weight'] = state_dict['fc.weight']
-    pretrained_state_dict['fc.bias'] = state_dict['fc.bias']
-    model.load_state_dict(pretrained_state_dict)
+    model.tspModel.fc1 = None
+    model.tspModel.fc2 = None
+    model.load_state_dict(pretrained_state_dict['model'])
+    model = model.tspModel
+    model.to(device) 
+    
+    # pretrained_state_dict = {k: v for k,v in pretrained_state_dict.items() if 'fc' not in k}
+    # state_dict = model.state_dict()
+    # pretrained_state_dict['fc.weight'] = state_dict['fc.weight']
+    # pretrained_state_dict['fc.bias'] = state_dict['fc.bias']
+    # model.load_state_dict(pretrained_state_dict)
 
     print('START FEATURE EXTRACTION')
     evaluate(model, data_loader, device)

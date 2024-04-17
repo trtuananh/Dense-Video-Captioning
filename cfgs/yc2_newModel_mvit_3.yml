@@ -42,7 +42,7 @@ valid_subdir: valid
 loss_alphas: [1.0, 1.0]
 global_video_features: video_backbone/TSP/extract_features/youcook_r2plus1d_34-tac_on_kinetics.h5
 backbone_tsp: mvit_v2_s
-backbone_lr: 0.00001
+backbone_lr: 0.00001        # day la learning rate ong can chinh sua
 fc_lr: 0.00005
 pretrained_tsp_path: video_backbone/TSP/checkpoints/mvit_tsp.pth
 label_columns: ['action-label', 'temporal-region-label']

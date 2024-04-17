@@ -298,6 +298,8 @@ def parse_opts():
     parser.add_argument('--in_batch_size', default=4, type=int,
                         help='Middle batch used for forwarding tsp clips')
  
+    parser.add_argument('--in_batch_size_valid', default=26, type=int,
+                        help='Middle batch used for forwarding tsp clips')
     # reranking
     parser.add_argument('--ec_alpha', type=float, default=0.3)
     args = parser.parse_args()
