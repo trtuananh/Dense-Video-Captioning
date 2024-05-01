@@ -18,9 +18,7 @@ from torch.utils.data import DataLoader
 from os.path import dirname, abspath
 from video_backbone.TSP.common import utils
 from video_backbone.TSP.common import transforms as T
-# from torchvision.datasets.samplers import DistributedSampler
 from itertools import chain
-# from video_backbone.TSP.common.scheduler import WarmupMultiStepLR
 from TSPmodel import Model
 from NewModel import NewModel
 from NewDataset import NewDataset 
@@ -89,18 +87,18 @@ def main(args):
     if args.start_from:
         args.pretrain = False
         infos_path = os.path.join(save_folder, 'info.json')
-        # with open(infos_path) as f:
-        #     logger.info('Load info from {}'.format(infos_path))
-        #     saved_info = json.load(f)
-        #     prev_opt = saved_info[args.start_from_mode[:4]]['opt']
+        with open(infos_path) as f:
+            logger.info('Load info from {}'.format(infos_path))
+            saved_info = json.load(f)
+            prev_opt = saved_info[args.start_from_mode[:4]]['opt']
 
-        #     exclude_opt = ['start_from', 'start_from_mode', 'pretrain']
-        #     for opt_name in prev_opt.keys():
-        #         if opt_name not in exclude_opt:
-        #             vars(args).update({opt_name: prev_opt.get(opt_name)})
-        #         if prev_opt.get(opt_name) != vars(args).get(opt_name):
-        #             logger.info('Change opt {} : {} --> {}'.format(opt_name, prev_opt.get(opt_name),
-        #                                                           vars(args).get(opt_name)))
+            exclude_opt = ['start_from', 'start_from_mode', 'pretrain']
+            for opt_name in prev_opt.keys():
+                if opt_name not in exclude_opt:
+                    vars(args).update({opt_name: prev_opt.get(opt_name)})
+                if prev_opt.get(opt_name) != vars(args).get(opt_name):
+                    logger.info('Change opt {} : {} --> {}'.format(opt_name, prev_opt.get(opt_name),
+                                                                  vars(args).get(opt_name)))
                     
     
     epoch = saved_info[args.start_from_mode[:4]].get('epoch', 0)
@@ -213,8 +211,6 @@ def main(args):
 
 
     print('CREATING DATA LOADERS')
-    # sampler_train = DistributedSampler(dataset_train, shuffle=True) if args.distributed else None
-    # sampler_valid = DistributedSampler(dataset_valid, shuffle=False) if args.distributed else None
 
     data_loader_train = DataLoader(
         dataset_train, batch_size=args.batch_size, shuffle=True,
@@ -231,16 +227,10 @@ def main(args):
     model.pdvcModel.translator = dataset_train.translator
 
 
-    # if args.distributed and args.sync_bn:
-    #     model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-
-    # criterion = torch.nn.CrossEntropyLoss(ignore_index=-1) # targets with -1 indicate missing label
 
     backbone_params = None
     params = None
 
-    # fc_params = model.tspModel.fc.parameters() if len(args.label_columns) == 1 \
-    #                 else chain(model.tspModel.fc1.parameters(), model.fc2.parameters())
 
     if args.backbone_tsp != 'mvit_v2_s':
         backbone_params = chain(model.tspModel.features.layer1.parameters(),
@@ -254,51 +244,21 @@ def main(args):
         ]
 
     else:
-        params = [
-            {'params': model.tspModel.features.parameters(), 'lr': args.backbone_lr * args.world_size, 'name': 'backbone'},
-            # {'params': model.tspModel.fc1.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc1'},
-            # {'params': model.tspModel.fc2.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc2'}
-        ]
+        params = model.parameters()
+        
+        # params = [
+        #     {'params': model.tspModel.features.parameters(), 'lr': args.backbone_lr * args.world_size, 'name': 'backbone'},
+        #     # {'params': model.tspModel.fc1.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc1'},
+        #     # {'params': model.tspModel.fc2.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc2'}
+        # ]
 
 
     if args.pretrained_tsp_path and (not args.start_from):
         print(f'Load a model from tsp pretrained weights')
-        pretrained_state_dict_tsp = torch.load(args.pretrained_tsp_path, map_location='cpu')['model']
-        pretrained_state_dict_tsp = {k: v for k,v in pretrained_state_dict_tsp.items() if 'fc' not in k}
-        state_dict = model.tspModel.state_dict()
-        pretrained_state_dict_tsp['fc1.weight'] = state_dict['fc1.weight']
-        pretrained_state_dict_tsp['fc2.weight'] = state_dict['fc2.weight']
-        pretrained_state_dict_tsp['fc1.bias'] = state_dict['fc1.bias']
-        pretrained_state_dict_tsp['fc2.bias'] = state_dict['fc2.bias']
-        model.tspModel.load_state_dict(pretrained_state_dict_tsp)
-        model.tspModel.fc2 = None
-        model.tspModel.fc1 = None
-
-        params = [
-            {'params': model.tspModel.features.parameters(), 'lr': args.backbone_lr * args.world_size, 'name': 'backbone'},
-            # {'params': model.tspModel.fc1.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc1'},
-            # {'params': model.tspModel.fc2.parameters(), 'lr': args.fc_lr * args.world_size, 'name': 'fc2'}
-        ]
-
-        # optimizer = torch.optim.SGD(
-        #     params, momentum=args.momentum, weight_decay=args.weight_decay
-        # )
         args.start_epoch = 0
-        # warmup_iters = args.lr_warmup_epochs * len(data_loader_train)
-        # lr_milestones = [len(data_loader_train) * m for m in args.lr_milestones]
-        # lr_scheduler = WarmupMultiStepLR(
-        #     optimizer, milestones=lr_milestones, gamma=args.lr_gamma,
-        #     warmup_iters=warmup_iters, warmup_factor=1e-5)
     
     # Recover the pdvc parameters
     model_pth = None
-    # if args.start_from and (not args.pretrain):
-    #     if args.start_from_mode == 'best':
-    #         model_pth = torch.load(os.path.join(save_folder, 'model-best.pth'))
-    #     elif args.start_from_mode == 'last':
-    #         model_pth = torch.load(os.path.join(save_folder, 'model-last.pth'))
-    #     logger.info('Loading pth from {}, iteration:{}'.format(save_folder, iteration))
-    #     model.pdvcModel.load_state_dict(model_pth['model'])
 
     # Load the pre-trained model
     if args.pretrain and (not args.start_from):
@@ -320,27 +280,15 @@ def main(args):
         else:
             raise ValueError("wrong value of args.pretrain")
 
-        params.append(
-                {'params': model.pdvcModel.parameters(), 'lr': args.lr, 'name': 'decoder'},
-        )
 
-    # optimizer = torch.optim.SGD(
-    #     params, momentum=args.momentum, weight_decay=args.weight_decay
-    # )
-    
-    
-    
-    
-    # model_without_ddp = model
-    # if args.distributed:
-    #     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
-    #     model_without_ddp = model.module
+        params = model.parameters()
+
 
     visited_videos = set()
     first_start = False
     if args.start_from and (not args.pretrain):
-        model.tspModel.fc2 = None
-        model.tspModel.fc1 = None
+        # model.tspModel.fc2 = None
+        # model.tspModel.fc1 = None
         if args.start_from_mode == 'best':
             model_pth = torch.load(os.path.join(save_folder, 'model-best.pth'), map_location=device)
         elif args.start_from_mode == 'last':
@@ -348,23 +296,21 @@ def main(args):
         logger.info('Loading pth from {}, iteration:{}'.format(save_folder, iteration))
         # model.pdvcModel.load_state_dict(model_pth['model'])
         print(f'Resuming from checkpoint.')
-        # checkpoint = torch.load(args., map_location='cpu')
         model.load_state_dict(model_pth['model'])
         visited_videos = model_pth['visited_videos']
         epoch = model_pth['epoch']
         first_start = True
-        params = [
-            {'params': model.tspModel.features.parameters(), 'lr': args.backbone_lr * args.world_size, 'name': 'backbone'},
-            {'params': model.pdvcModel.parameters(), 'lr': args.lr, 'name': 'decoder'},
-        ]
+        
+        params = model.parameters()
         
 
+    model.to(device)
     optimizer = None
     if args.optimizer_type == 'adam':
-        optimizer = optim.Adam(params=params, amsgrad=True, weight_decay=args.weight_decay, lr=args.lr)
+        optimizer = optim.Adam(params=params, weight_decay=args.weight_decay, lr=args.lr)
 
     elif args.optimizer_type == 'adamw':
-        optimizer = optim.AdamW(params=params, amsgrad=True, weight_decay=args.weight_decay, lr=args.lr)
+        optimizer = optim.AdamW(params=params, weight_decay=args.weight_decay, lr=args.lr)
         
 
     milestone = [args.learning_rate_decay_start + args.learning_rate_decay_every * _ for _ in range(int((args.epoch - args.learning_rate_decay_start) / args.learning_rate_decay_every))]
@@ -381,21 +327,9 @@ def main(args):
     model.to(device)
     
 
-    # if args.start_from:
-    #     optimizer.load_state_dict(model_pth['optimizer'])
-    #     lr_scheduler.step(epoch-1)
 
     print_opt(args, model, logger)
     print_alert_message('Strat training !', logger)
-
-
-
-    # if args.valid_only:
-    #     epoch = args.start_epoch - 1 if  args.resume else args.start_epoch
-    #     evaluate(model=model, criterion=criterion, data_loader=data_loader_valid, device=device, epoch=epoch,
-    #         print_freq=args.print_freq, label_columns=args.label_columns, loss_alphas=args.loss_alphas,
-    #         output_dir=args.output_dir)
-    #     return
 
 
     print('START TRAINING')
@@ -445,12 +379,11 @@ def main(args):
             dt = collections.defaultdict(lambda: None, dt)
 
             # pdvc forward
-            # output, loss = model(dt, criterion, opt.transformer_input_type)
-            _, loss, tsp_head_loss = model.forward(dt, args.loss_alphas, eval_mode=False, weight_dict=weight_dict)
+            _, loss, tsp_head_loss = model.forward(dt, args.loss_alphas, eval_mode=False)
 
             final_loss = sum(loss[k] * weight_dict[k] for k in loss.keys() if k in weight_dict)
-            # (final_loss).backward()
-            # torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+            (final_loss).backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
 
             optimizer.step()
 
@@ -467,7 +400,7 @@ def main(args):
                 losses_log_every = 6
             
             visited_videos.add(dt['video_filename'][-17:])
-            if cao % 5 == 0:
+            if cao % 100 == 0:
                 saved_pth = {'epoch': epoch,
                              'model': model.state_dict(),
                              'optimizer': optimizer.state_dict(), 
@@ -510,7 +443,6 @@ def main(args):
         visited_videos = set()
         cao = 0
         # evaluation
-        # if (epoch % args.save_checkpoint_every == 0) and (epoch >= args.min_epoch_when_save):
         if epoch >= args.min_epoch_when_save:
 
             # Save model
@@ -518,10 +450,10 @@ def main(args):
                          'model': model.state_dict(),
                          'optimizer': optimizer.state_dict(), 'visited_videos': visited_videos}
 
-            # if args.save_all_checkpoint:
-            #     checkpoint_path = os.path.join(save_folder, 'model_iter_{}.pth'.format(iteration))
-            # else:
-            #     checkpoint_path = os.path.join(save_folder, 'model-last.pth')
+            if args.save_all_checkpoint:
+                checkpoint_path = os.path.join(save_folder, 'model_iter_{}.pth'.format(iteration))
+            else:
+                checkpoint_path = os.path.join(save_folder, 'model-last.pth')
 
             # torch.save(saved_pth, checkpoint_path)
 
@@ -608,5 +540,3 @@ if __name__ == '__main__':
 
     os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # to avoid OMP problem on macos
     main(opt)
-    # train(opt)
-

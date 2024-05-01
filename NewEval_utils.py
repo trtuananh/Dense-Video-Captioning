@@ -211,6 +211,8 @@ def evaluate(model, criterion, postprocessors, loader, dvc_json_path, logger=Non
             out_json['results'].update(batch_json)
             if debug and len(out_json['results']) > 5:
                 break
+            
+            
 
     save_dvc_json(out_json, dvc_json_path)
     
@@ -231,4 +233,3 @@ def evaluate(model, criterion, postprocessors, loader, dvc_json_path, logger=Non
     out_json.update(scores)
     save_dvc_json(out_json, dvc_json_path)
     return scores, loss_sum
-

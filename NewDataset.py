@@ -7,7 +7,6 @@ import json
 import numpy as np
 import torch
 import h5py
-# import pickle as pkl
 
 from torch.utils.data import Dataset
 from scipy.interpolate import interp1d
