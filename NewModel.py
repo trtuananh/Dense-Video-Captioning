@@ -64,7 +64,7 @@ class NewModel(nn.Module):
         final_feature = final_feature + add
         return final_feature
 
-    def forward(self, x, alphas=None, eval_mode=False):
+    def forward(self, x, alphas=None, eval_mode=False, visualization='no'):
 
         dt = x
         del dt['video_action-label']
@@ -72,17 +72,14 @@ class NewModel(nn.Module):
         del dt['video_gvf']
         
         x = dt['video_segment']     # [(start, end), ...]
-        in_batch_size = self.args.in_batch_size
-        if eval_mode:
-            in_batch_size = self.args.in_batch_size_valid
             
         T = len(x)
         filename = dt['video_filename']
         los = 0
-        clips = self.get_vid_features(filename).to(self.device)      # (T, 768)
+        clips = self.get_vid_features(filename, visualization=visualization).to(self.device)      # (T, 768)
         
         
-        sound_feature = self.get_mfcc(x, filename).to(self.device)  # (T, 768)
+        sound_feature = self.get_mfcc(x, filename, visualization=visualization).to(self.device)  # (T, 768)
   
         final_feature = self.visual_self_attention(clips.unsqueeze(0))  # (1, T, 768)
         final_feature = self.visual_sound_attention(final_feature, sound_feature.unsqueeze(0))
@@ -99,14 +96,14 @@ class NewModel(nn.Module):
         
 
 
-    def get_mfcc(self, segments, filename):
+    def get_mfcc(self, segments, filename, visualization):
         '''
             Lay ra video_frames va mfcc
             segments: list of tuples (clip_t_start, clip_t_end)
             filename: ten video file
             eval_mode: True if dang validation
         '''
-        if os.path.exists(f'data/yc2/features/sound_feature_train/{filename[-17:-4]}.pth'):
+        if visualization == 'no' and os.path.exists(f'data/yc2/features/sound_feature_train/{filename[-17:-4]}.pth'):
             sound_feature = torch.load(f'data/yc2/features/sound_feature_train/{filename[-17:-4]}.pth')
             return sound_feature
         
@@ -135,13 +132,16 @@ class NewModel(nn.Module):
         
         sound_feature = torch.stack(lst_audio)
         
-        torch.save(sound_feature, f'data/yc2/features/sound_feature_train/{filename[-17:-4]}.pth')
+        if visualization == 'no':
+            torch.save(sound_feature, f'data/yc2/features/sound_feature_train/{filename[-17:-4]}.pth')
 
         return sound_feature         # (T, 768)
     
 
-    def get_vid_features(self, filename):
+    def get_vid_features(self, filename, visualization):
         filename = os.path.join('data/yc2/features/tsp_mvitv2', filename[-17:-4] + '.npy')
+        if visualization == 'yes':
+            filename = f'visualization/output/video_backbone/TSP/checkpoints/mvit_tsp.pth_stride_16/{filename[-17:-4]}.npy'
         vid_features = np.load(filename)
         vid_features = torch.from_numpy(vid_features)     # (T, 768)
 

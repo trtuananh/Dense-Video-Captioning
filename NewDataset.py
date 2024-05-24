@@ -102,6 +102,10 @@ class NewDataset(Dataset):
         # list_of_vframes = vid_sample['clip']            # list of (C, T, H, W)
         feature_length = len(vid_sample['segment'])
         key = vid_sample['filename'][:-4][-13:]
+        tmp_key = None
+        if key not in self.anno:
+            tmp_key = key
+            key = 'v__GTwKEPmB-U'
 
         duration = self.anno[key]['duration']
         captions = self.anno[key]['sentences']
@@ -125,6 +129,8 @@ class NewDataset(Dataset):
         # gt_idx = np.arange(len(gt_timestamps))
         # event_seq_idx = seq_gt_idx = np.expand_dims(gt_idx, 0)
         # lnt_scores = [1.] * len(lnt_featstamps)
+        if tmp_key is not None:
+            key = tmp_key
 
         return vid_sample['segment'], gt_featstamps, action_labels, caption_label, gt_timestamps, duration, captions, key, vid_sample['gvf'], vid_sample['action-label'], vid_sample['filename'], vid_sample['temporal-region-label'], vid_sample['fps']
     

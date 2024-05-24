@@ -64,14 +64,6 @@ def main(opt):
         opt.nthreads = 0
     # Create the Data Loader instance
 
-    if opt.eval_mode == 'test':
-        opt.eval_caption_file = create_fake_test_caption_file(opt.test_video_meta_data_csv_path)
-        opt.visual_feature_folder = opt.test_video_feature_folder
-        #if opt.visual_feature_type == ['tsp'] and opt.test_video_feature_folder == ['visualization/output/video_backbone/TSP/checkpoints/mvit_tsp.pth_stride_16/']:
-    	    #opt.visual_feature_type = ['tsp_mvit']
-    	    #opt.feature_dim=768
-    	    #print(f'Hello from the other side')
-    	        
     metadata_df = pd.read_csv(opt.metadata_csv_valid)
     valid_dir = os.path.join(opt.root_dir, opt.valid_subdir)
     label_mappings = []
@@ -79,6 +71,17 @@ def main(opt):
         with open(label_mapping_json) as fobj:
             label_mapping = json.load(fobj)
             label_mappings.append(dict(zip(label_mapping, range(len(label_mapping)))))
+
+    if opt.eval_mode == 'test':
+        opt.eval_caption_file = create_fake_test_caption_file(opt.test_video_meta_data_csv_path)
+        opt.visual_feature_folder = opt.test_video_feature_folder
+        metadata_df = pd.read_csv('visualization/videos/metadata.csv')
+        valid_dir = 'visualization/videos'
+        #if opt.visual_feature_type == ['tsp'] and opt.test_video_feature_folder == ['visualization/output/video_backbone/TSP/checkpoints/mvit_tsp.pth_stride_16/']:
+    	    #opt.visual_feature_type = ['tsp_mvit']
+    	    #opt.feature_dim=768
+    	    #print(f'Hello from the other side')
+    	        
 
 
     val_dataset = NewDataset(
@@ -126,7 +129,7 @@ def main(opt):
     if opt.eval_mode == 'test':
         out_json_path = os.path.join(folder_path, 'dvc_results.json')
         evaluate(model, model.pdvcCriterion,  model.pdvcPostprocessor, loader, out_json_path,
-                         logger, alpha=opt.ec_alpha, dvc_eval_version=opt.eval_tool_version, device=opt.eval_device, debug=False, skip_lang_eval=True)
+                         logger, alpha=opt.ec_alpha, dvc_eval_version=opt.eval_tool_version, device=opt.eval_device, debug=False, skip_lang_eval=True, visualization=opt.visualization)
 
 
     else:
@@ -163,6 +166,7 @@ if __name__ == '__main__':
     parser.add_argument('--eval_transformer_input_type', type=str, default='queries', choices=['gt_proposals', 'queries'])
     parser.add_argument('--gpu_id', type=str, nargs='+', default=['0'])
     parser.add_argument('--eval_device', type=str, default='cuda')
+    parser.add_argument('--visualization', type=str, default='no')
     opt = parser.parse_args()
 	
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join([str(i) for i in opt.gpu_id])

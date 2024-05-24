@@ -79,7 +79,7 @@ Note that we generate non-English captions by translating the English captions b
 To produce Chinese captions, set `output_language=zh-cn`. 
 For other language support, find the abbreviation of your language at this [url](https://github.com/lushan88a/google_trans_new/blob/main/constant.py), and you also may need to download a font supporting your language and put it into `./visualization`.
 
-![demo.gif](visualization/xukun_en.gif)![demo.gif](visualization/xukun_cn.gif)
+<!-- ![demo.gif](visualization/xukun_en.gif)![demo.gif](visualization/xukun_cn.gif) -->
 
 
 ## Google Colab training 
