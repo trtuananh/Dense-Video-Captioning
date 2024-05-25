@@ -246,7 +246,7 @@ class UntrimmedVideoDataset2(Dataset):
         
         return pd.DataFrame(clip_metadata), vid_clip_table
 
-    
+
 def _resample_video_idx(num_frames, original_fps, new_fps):
     step = float(original_fps) / new_fps
     if step.is_integer():

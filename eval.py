@@ -40,7 +40,7 @@ def main(opt):
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
     logger = create_logger(folder_path, 'val.log')
-    if opt.eval_model_path:
+    if opt.c:
         model_path = opt.eval_model_path
         infos_path = os.path.join('/'.join(opt.eval_model_path.split('/')[:-1]), 'info.json')
     else:
@@ -70,7 +70,7 @@ def main(opt):
     	    #opt.visual_feature_type = ['tsp_mvit']
     	    #opt.feature_dim=768
     	    #print(f'Hello from the other side')
-    	        
+
 
     val_dataset = PropSeqDataset(opt.eval_caption_file,
                                  opt.visual_feature_folder,
