@@ -17,12 +17,13 @@ sys.path.insert(0, os.path.join(pdvc_dir, 'densevid_eval3'))
 sys.path.insert(0, os.path.join(pdvc_dir, 'densevid_eval3/SODA'))
 # print(sys.path)
 
-from eval_utils import evaluate
-from pdvc.pdvc import build
+from NewEval_utils import evaluate
+from NewDataset import NewDataset 
 from misc.utils import create_logger
-from data.video_dataset import PropSeqDataset, collate_fn
+from NewDataset import collate_fn
 from torch.utils.data import DataLoader
 from os.path import basename
+from NewModel import NewModel
 import pandas as pd
 
 def create_fake_test_caption_file(metadata_csv_path):
@@ -63,25 +64,52 @@ def main(opt):
         opt.nthreads = 0
     # Create the Data Loader instance
 
+    metadata_df = pd.read_csv(opt.metadata_csv_valid)
+    valid_dir = os.path.join(opt.root_dir, opt.valid_subdir)
+    label_mappings = []
+    for label_mapping_json in opt.label_mapping_jsons:
+        with open(label_mapping_json) as fobj:
+            label_mapping = json.load(fobj)
+            label_mappings.append(dict(zip(label_mapping, range(len(label_mapping)))))
+
     if opt.eval_mode == 'test':
         opt.eval_caption_file = create_fake_test_caption_file(opt.test_video_meta_data_csv_path)
         opt.visual_feature_folder = opt.test_video_feature_folder
+        metadata_df = pd.read_csv('visualization/videos/metadata.csv')
+        valid_dir = 'visualization/videos'
         #if opt.visual_feature_type == ['tsp'] and opt.test_video_feature_folder == ['visualization/output/video_backbone/TSP/checkpoints/mvit_tsp.pth_stride_16/']:
     	    #opt.visual_feature_type = ['tsp_mvit']
     	    #opt.feature_dim=768
     	    #print(f'Hello from the other side')
     	        
 
-    val_dataset = PropSeqDataset(opt.eval_caption_file,
-                                 opt.visual_feature_folder,
-                                 opt.dict_file, False, opt.eval_proposal_type,
-                                 opt)
-    loader = DataLoader(val_dataset, batch_size=opt.batch_size_for_eval,
-                        shuffle=False, num_workers=opt.nthreads, collate_fn=collate_fn)
+
+    val_dataset = NewDataset(
+        csv_filename=metadata_df,
+        root_dir=valid_dir,
+        clip_length=opt.clip_len,
+        frame_rate=opt.frame_rate,
+        stride=opt.stride,
+        anno_file=opt.val_caption_file,
+        dict_file=opt.dict_file,
+        is_training=False,
+        proposal_type='gt',
+        opt=opt,
+        transforms=None,
+        global_video_feature=None,
+        label_columns=opt.label_columns,
+        label_mappings=label_mappings,
+        dataset_type='valid'
+    )
+    
+    loader = DataLoader(
+        val_dataset, batch_size=opt.batch_size, shuffle=False,
+        num_workers=opt.workers, pin_memory=True, collate_fn=collate_fn)
 
 
-    model, criterion, postprocessors = build(opt)
-    model.translator = val_dataset.translator
+    model = NewModel(backbone=opt.backbone_tsp, num_classes=[len(l) for l in label_mappings], num_heads=len(opt.label_columns), concat_gvf=opt.global_video_features is not None, 
+                     device=torch.device(opt.device), args=opt, transforms_valid=None, transforms_train=None)
+    model.pdvcModel.translator = val_dataset.translator
 
 
 
@@ -100,15 +128,15 @@ def main(opt):
 
     if opt.eval_mode == 'test':
         out_json_path = os.path.join(folder_path, 'dvc_results.json')
-        evaluate(model, criterion, postprocessors, loader, out_json_path,
-                         logger, alpha=opt.ec_alpha, dvc_eval_version=opt.eval_tool_version, device=opt.eval_device, debug=False, skip_lang_eval=True)
+        evaluate(model, model.pdvcCriterion,  model.pdvcPostprocessor, loader, out_json_path,
+                         logger, alpha=opt.ec_alpha, dvc_eval_version=opt.eval_tool_version, device=opt.eval_device, debug=False, skip_lang_eval=True, visualization=opt.visualization)
 
 
     else:
         out_json_path = os.path.join(folder_path, '{}_epoch{}_num{}_alpha{}.json'.format(
             time.strftime("%Y-%m-%d-%H-%M-%S_", time.localtime()) + str(opt.id), epoch, len(loader.dataset),
             opt.ec_alpha))
-        caption_scores, eval_loss = evaluate(model, criterion, postprocessors, loader, out_json_path,
+        caption_scores, eval_loss = evaluate(model, model.pdvcCriterion, model.pdvcPostprocessor, loader, out_json_path,
                          logger, alpha=opt.ec_alpha, dvc_eval_version=opt.eval_tool_version, device=opt.eval_device, debug=False, skip_lang_eval=False)
         avg_eval_score = {key: np.array(value).mean() for key, value in caption_scores.items() if key !='tiou'}
         avg_eval_score2 = {key: np.array(value).mean() * 4917 / len(loader.dataset) for key, value in caption_scores.items() if key != 'tiou'}
@@ -138,6 +166,7 @@ if __name__ == '__main__':
     parser.add_argument('--eval_transformer_input_type', type=str, default='queries', choices=['gt_proposals', 'queries'])
     parser.add_argument('--gpu_id', type=str, nargs='+', default=['0'])
     parser.add_argument('--eval_device', type=str, default='cuda')
+    parser.add_argument('--visualization', type=str, default='no')
     opt = parser.parse_args()
 	
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join([str(i) for i in opt.gpu_id])
