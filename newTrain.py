@@ -123,6 +123,8 @@ def main(args):
     valid_dir = os.path.join(args.root_dir, args.valid_subdir)
 
     print('LOADING DATA')
+
+    # TODO TuanAnh: check if the label mappings are necessary
     label_mappings = []
     for label_mapping_json in args.label_mapping_jsons:
         with open(label_mapping_json) as fobj:

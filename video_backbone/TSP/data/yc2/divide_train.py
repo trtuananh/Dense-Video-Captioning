@@ -127,7 +127,7 @@ with open('./yc2_train_tsp_groundtruth.csv', 'w') as gt_train_file:
     csv_writer_train.writerows(training_rows)
 
 
-with open('./y2c_valid_tsp_groundtruth.csv', 'w') as gt_valid_file:
+with open('yc2_valid_tsp_groundtruth.csv', 'w') as gt_valid_file:
     csv_writer_valid = csv.writer(gt_valid_file)
     csv_writer_valid.writerow(header)
     csv_writer_valid.writerows(valid_rows)

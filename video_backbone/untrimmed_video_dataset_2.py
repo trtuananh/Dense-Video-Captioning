@@ -195,6 +195,7 @@ class UntrimmedVideoDataset2(Dataset):
 
             all_segment_of_a_vid.append((float(row['t-start']), float(row['t-end'])))
 
+            # if row is last segment of one video that have Action label
             if row['filename'] != df.loc[i + 1, 'filename']:
                 total_frames_after_resampling = int(row['video-frames'] * (float(frame_rate) / row['fps']))
                 idxs = _resample_video_idx(total_frames_after_resampling, row['fps'], frame_rate)
@@ -224,7 +225,7 @@ class UntrimmedVideoDataset2(Dataset):
 
                         if sta <= en and UntrimmedVideoDataset2.my_iou(first_seg, second_seg) >= 0.6:
                             clip_metadata['action-label'].append(row['action-label'])
-                            clip_metadata['temporal-region-label'].append(row['temporal-region-label'])
+                            clip_metadata['temporal-region-label'].append(row['temporal-region-label'])  # Action
                             
                     
                         else:
@@ -245,7 +246,7 @@ class UntrimmedVideoDataset2(Dataset):
         
         return pd.DataFrame(clip_metadata), vid_clip_table
 
-    
+
 def _resample_video_idx(num_frames, original_fps, new_fps):
     step = float(original_fps) / new_fps
     if step.is_integer():

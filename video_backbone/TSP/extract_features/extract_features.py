@@ -13,11 +13,18 @@ import sys
 
 from torchvision import transforms
 from torch import nn
+
+FILEPATH = os.path.abspath(__file__)
+sys.path.append(os.path.dirname(FILEPATH))
+sys.path.insert(0, os.path.dirname(os.path.dirname(FILEPATH)))
+
 from eval_video_dataset import EvalVideoDataset
 sys.path.insert(0, '..')
 from common import utils
 from common import transforms as T
 from models.model import Model
+
+# from models.model import Model
 
 
 MODEL_URLS = {
@@ -58,7 +65,7 @@ def evaluate(model, data_loader, device):
             data_loader.dataset.save_output(logits, sample, ["action-label"])
 
 
-def main(args):
+def extract_new_model(args):
     print(args)
     print('TORCH VERSION: ', torch.__version__)
     print('TORCHVISION VERSION: ', torchvision.__version__)
@@ -111,6 +118,85 @@ def main(args):
     print('CREATING DATA LOADER')
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=4, shuffle=False,
+        num_workers=args.workers, pin_memory=True)
+
+    print(f'LOADING MODEL')
+    if args.local_checkpoint:
+        print(f'from the local checkpoint: {args.local_checkpoint}')
+        pretrained_state_dict = torch.load(args.local_checkpoint, map_location='cpu')['model']
+    else:
+        print(f'from the GitHub released model: {args.released_checkpoint}')
+        args.backbone = args.released_checkpoint.split('-')[0]
+        pretrained_state_dict = torch.hub.load_state_dict_from_url(
+            MODEL_URLS[args.released_checkpoint], progress=True, check_hash=True, map_location='cpu'
+            )['model']
+
+    # model with a dummy classifier layer
+    model = NewModel(backbone=args.backbone, num_classes=[1 , 1], num_heads=2, concat_gvf=args.global_video_features is not None,
+                     device=device, args=args, transforms_valid=transform, transforms_train=transform)
+    # model.to(device)
+
+    # remove the classifier layers from the pretrained model and load the backbone weights
+    model.tspModel.fc1 = None
+    model.tspModel.fc2 = None
+    model.load_state_dict(pretrained_state_dict['model'])
+    model = model.tspModel
+    model.to(device)
+
+    # pretrained_state_dict = {k: v for k,v in pretrained_state_dict.items() if 'fc' not in k}
+    # state_dict = model.state_dict()
+    # pretrained_state_dict['fc.weight'] = state_dict['fc.weight']
+    # pretrained_state_dict['fc.bias'] = state_dict['fc.bias']
+    # model.load_state_dict(pretrained_state_dict)
+
+    print('START FEATURE EXTRACTION')
+    evaluate(model, data_loader, device)
+
+
+def main(args):
+    print(args)
+    print('TORCH VERSION: ', torch.__version__)
+    print('TORCHVISION VERSION: ', torchvision.__version__)
+    torch.backends.cudnn.benchmark = True
+
+    device = torch.device(args.device)
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    print('LOADING DATA')
+    normalize = T.Normalize(mean=[0.43216, 0.394666, 0.37645],
+                            std=[0.22803, 0.22145, 0.216989])
+
+    transform = torchvision.transforms.Compose([
+        T.ToFloatTensorInZeroOne(),
+        T.Resize((128, 171)),
+        normalize,
+        T.CenterCrop((112, 112))
+    ])
+
+    metadata_df = pd.read_csv(args.metadata_csv_filename)
+    shards = np.linspace(0,len(metadata_df),args.num_shards+1).astype(int)
+    start_idx, end_idx = shards[args.shard_id], shards[args.shard_id+1]
+    print(f'shard-id: {args.shard_id + 1} out of {args.num_shards}, '
+        f'total number of videos: {len(metadata_df)}, shard size {end_idx-start_idx} videos')
+
+    metadata_df = metadata_df.iloc[start_idx:end_idx].reset_index()
+    metadata_df['is-computed-already'] = metadata_df['filename'].map(lambda f:
+        os.path.exists(os.path.join(args.output_dir, os.path.basename(f).split('.')[0] + '.npy')))
+    metadata_df = metadata_df[metadata_df['is-computed-already']==False].reset_index(drop=True)
+    print(f'Number of videos to process after excluding the ones already computed on disk: {len(metadata_df)}')
+
+    dataset = EvalVideoDataset(
+        metadata_df=metadata_df,
+        root_dir=args.data_path,
+        clip_length=args.clip_len,
+        frame_rate=args.frame_rate,
+        stride=args.stride,
+        output_dir=args.output_dir,
+        transforms=transform)
+
+    print('CREATING DATA LOADER')
+    data_loader = torch.utils.data.DataLoader(
+        dataset, batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True)
 
     print(f'LOADING MODEL')

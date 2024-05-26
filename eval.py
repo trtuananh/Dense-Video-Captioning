@@ -81,7 +81,7 @@ def main(opt):
     	    #opt.visual_feature_type = ['tsp_mvit']
     	    #opt.feature_dim=768
     	    #print(f'Hello from the other side')
-    	        
+
 
 
     val_dataset = NewDataset(
