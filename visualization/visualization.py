@@ -78,7 +78,8 @@ def processImg(img, cur_time, title, dense_captions, prop_idx, n_caption=3, outp
         caption = '{:2.1f}s-{:2.1f}s: {}'.format(timestamp[0], timestamp[1], caption)
         ptText = (10, h - text_height * n_caption + i * text_height)
         if i in prop_idx:
-            img = paint_text(img, caption, font, ptText, color=(255, 0, 0))
+            #img = paint_text(img, caption, font, ptText, color=(255, 0, 0))
+            img = paint_text(img, caption, font, ptText, color=(255, 255, 255))
         else:
             img = paint_text(img, caption, font, ptText, color=(255, 255, 255))
 

@@ -66,17 +66,6 @@ class EvalVideoDataset2(Dataset):
 
             sample['segment'].append((clip_t_start, clip_t_end))
 
-            # get a tensor [clip_length, H, W, C] of the video frames between clip_t_start and clip_t_end seconds
-            # vframes = EvalVideoDataset2.my_read_video(filename=filename, start_pts=clip_t_start, end_pts=clip_t_end, pts_unit='sec')
-            # idxs = EvalVideoDataset2._resample_video_idx(self.clip_length, fps, self.frame_rate)
-            # vframes = vframes[idxs][:self.clip_length] # [:self.clip_length] for removing extra frames if isinstance(idxs, slice)
-            # if vframes.shape[0] != self.clip_length:
-            #     raise RuntimeError(f'<EvalVideoDataset>: got clip of length {vframes.shape[0]} != {self.clip_length}.'
-            #                        f'filename={filename}, clip_t_start={clip_t_start}, clip_t_end={clip_t_end}, '
-            #                        f'fps={fps}')
-            # stack.append(vframes)
-
-        # sample['clip'] = [self.transforms(vframes) for vframes in stack]        # list of (C, T, H, W) 
         filename = self.clip_metadata_df.iloc[start_row]['filename']
         sample['filename'] = filename
         sample['action-label'] = None
@@ -140,93 +129,4 @@ class EvalVideoDataset2(Dataset):
         idxs = torch.arange(num_frames, dtype=torch.float32) * step
         idxs = idxs.floor().to(torch.int64)
         return idxs
-
-
-    # def create_dataset_folder(self, path):
-    #     if not os.path.exists(path):
-    #         os.mkdir(path)
-
-   
-    #         for index in range(len(self.vid_clip_table)):
-
-    #             start_row = self.vid_clip_table[index][0]
-    #             end_row = self.vid_clip_table[index][1]
-
-    #             # stack = []
-    #             idx = 0
-    #             video_name = self.clip_metadata_df.iloc[start_row]['video-name']
-    #             video_path = os.path.join(self.path, video_name) 
-                
-    #             for i in range(start_row, end_row + 1):
-
-    #                 row = self.clip_metadata_df.iloc[i]
-    #                 filename, fps, clip_t_start, action_label = row['filename'], row['fps'], row['clip-t-start'], row['action-label']
-
-    #                 # compute clip_t_start and clip_t_end
-    #                 clip_length_in_sec = self.clip_length / self.frame_rate
-    #                 clip_t_end = clip_t_start + clip_length_in_sec
-
-    #                 # get a tensor [clip_length, C, H, W] of the video frames between clip_t_start and clip_t_end seconds
-    #                 # vframes, _, _ = read_video(filename=filename, start_pts=clip_t_start, end_pts=clip_t_end, pts_unit='sec')
-    #                 vframes = my_read_video(filename=filename, start_pts=clip_t_start, end_pts=clip_t_end, pts_unit='sec')
-    #                 idxs = EvalVideoDataset2._resample_video_idx(self.clip_length, fps, self.frame_rate)
-    #                 vframes = vframes[idxs][:self.clip_length] # [:self.clip_length] for removing extra frames if isinstance(idxs, slice)
-    #                 if vframes.shape[0] != self.clip_length:
-    #                     raise RuntimeError(f'<EvalVideoDataset>: got clip of length {vframes.shape[0]} != {self.clip_length}.'
-    #                                     f'filename={filename}, clip_t_start={clip_t_start}, clip_t_end={clip_t_end}, '
-    #                                     f'fps={fps}')
-
-    #                 # stack.append(vframes)
-
-    #                 for i in range(vframes.shape[0]):
-    #                     img = vframes[i]
-    #                     img_path = os.path.join(video_path, f'{idx}.jpg')
-    #                     save_image(img, img_path)
-    #                     idx += 1
-
-                # video_tensor = torch.stack(stack)        # list of (T, H, W, C) 
-
-
-
-    
-    # def __getitem__(self, idx):
-    #     sample = {}
-    #     start_row = self.vid_clip_table[idx][0]
-    #     end_row = self.vid_clip_table[idx][1]
-    #     leng = (end_row - start_row + 1) * self.clip_length
-
-    #     video_name = self.clip_metadata_df.iloc[start_row]['video-name']
-    #     video_path = os.path.join(self.path, video_name)
-
-    #     clip_tensors = []
-    #     temp = []
-    #     id = 0
-
-    #     while id  < leng:
-    #         img_path = os.path.join(video_path, f'{id}.jpg')        # (C, H, W)
-    #         img = read_image(img_path).permute(1, 2, 0)             # (H, W, C)
-    #         temp.append(img)
-            
-    #         if len(temp) % self.clip_length == 0:
-    #             clip_tensors.append(torch.stack(temp))
-    #             temp = []
-
-    #         id += 1
-
-
-    #     clips = [self.transforms(tensor) for tensor in clip_tensors]
-    #     sample['clip'] = clips
-    #     sample['filename'] = self.clip_metadata_df.iloc[start_row]['filename']
-        
-    #     if self.global_video_features:
-    #         f = h5py.File(self.global_video_features, 'r')
-    #         sample['gvf'] = torch.tensor(f[os.path.basename(sample['filename']).split('.')[0]][()])
-    #         f.close()
-    #     else:
-    #         sample['gvf'] = None
-
-    #     sample['action-label'] = None
-    #     sample['temporal-region-label'] = None
-        
-    #     return sample
 

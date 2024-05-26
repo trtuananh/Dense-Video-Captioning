@@ -74,7 +74,7 @@ class EvalVideoDataset(Dataset):
         sample['clip'] = self.transforms(vframes)
         sample['filename'] = filename
         sample['is-last-clip'] = is_last_clip
-        print(f"ATTENTION ALL PASSENGERS: {sample['clip'].shape}")
+        # print(f"ATTENTION ALL PASSENGERS: {sample['clip'].shape}")
         return sample
 
     def save_output(self, batch_output, batch_input, label_columns):

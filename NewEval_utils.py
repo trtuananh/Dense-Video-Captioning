@@ -158,7 +158,7 @@ def reranking(p_src, alpha, temperature):
 
 
 def evaluate(model, criterion, postprocessors, loader, dvc_json_path, logger=None, score_threshold=0,
-             alpha=0.3, dvc_eval_version='2018', device='cuda', debug=False, skip_lang_eval=False):
+             alpha=0.3, dvc_eval_version='2018', device='cuda', debug=False, skip_lang_eval=False, visualization='no'):
     '''
         My version
     '''
@@ -179,7 +179,7 @@ def evaluate(model, criterion, postprocessors, loader, dvc_json_path, logger=Non
                     {key: _.to(device) if isinstance(_, torch.Tensor) else _ for key, _ in vid_info.items()} for vid_info in
                     dt['video_target']]
 
-            output, loss, _ = model(dt, opt.loss_alphas,True)
+            output, loss, _ = model(dt, opt.loss_alphas, True, visualization)
             orig_target_sizes = dt['video_length'][:, 1]
 
             weight_dict = criterion.weight_dict
@@ -211,6 +211,8 @@ def evaluate(model, criterion, postprocessors, loader, dvc_json_path, logger=Non
             out_json['results'].update(batch_json)
             if debug and len(out_json['results']) > 5:
                 break
+            
+            
 
     save_dvc_json(out_json, dvc_json_path)
     
@@ -231,4 +233,3 @@ def evaluate(model, criterion, postprocessors, loader, dvc_json_path, logger=Non
     out_json.update(scores)
     save_dvc_json(out_json, dvc_json_path)
     return scores, loss_sum
-

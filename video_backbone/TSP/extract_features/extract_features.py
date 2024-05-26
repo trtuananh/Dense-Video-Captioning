@@ -19,11 +19,12 @@ sys.path.append(os.path.dirname(FILEPATH))
 sys.path.insert(0, os.path.dirname(os.path.dirname(FILEPATH)))
 
 from eval_video_dataset import EvalVideoDataset
+sys.path.insert(0, '..')
 from common import utils
 from common import transforms as T
 from models.model import Model
 
-# from NewModel import NewModel
+# from models.model import Model
 
 
 MODEL_URLS = {
@@ -131,7 +132,7 @@ def extract_new_model(args):
             )['model']
 
     # model with a dummy classifier layer
-    model = NewModel(backbone=args.backbone, num_classes=[1 , 1], num_heads=2, concat_gvf=args.global_video_features is not None, 
+    model = NewModel(backbone=args.backbone, num_classes=[1 , 1], num_heads=2, concat_gvf=args.global_video_features is not None,
                      device=device, args=args, transforms_valid=transform, transforms_train=transform)
     # model.to(device)
 
@@ -140,8 +141,8 @@ def extract_new_model(args):
     model.tspModel.fc2 = None
     model.load_state_dict(pretrained_state_dict['model'])
     model = model.tspModel
-    model.to(device) 
-    
+    model.to(device)
+
     # pretrained_state_dict = {k: v for k,v in pretrained_state_dict.items() if 'fc' not in k}
     # state_dict = model.state_dict()
     # pretrained_state_dict['fc.weight'] = state_dict['fc.weight']

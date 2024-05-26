@@ -239,7 +239,7 @@ def parse_opts():
     parser.add_argument('--stride', default=16, type=int,
                         help='Number of frames (after resampling with frame-rate) between consecutive clips (default: 16)')
     
-    parser.add_argument('--workers', default=6, type=int,
+    parser.add_argument('--workers', default=1, type=int,
                         help='Number of data loading workers (default: 6)') 
     
     # parser.add_argument('--output_dir', required=True,

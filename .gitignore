@@ -15,7 +15,10 @@ video_backbone/TSP/data/activitynet/valid/*
 video_backbone/TSP/data/activitynet/train/*
 read_npy.py
 test_npy.py
-
+visualization/*
+data/yc2/features/sound_feature_train/*
+video_backbone/TSP/data/yc2/sound_train/*
+video_backbone/TSP/data/yc2/sound_valid/*
 
 *.Ink
 .idea/
