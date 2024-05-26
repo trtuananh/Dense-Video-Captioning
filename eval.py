@@ -41,7 +41,7 @@ def main(opt):
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
     logger = create_logger(folder_path, 'val.log')
-    if opt.c:
+    if opt.eval_model_path:
         model_path = opt.eval_model_path
         infos_path = os.path.join('/'.join(opt.eval_model_path.split('/')[:-1]), 'info.json')
     else:
