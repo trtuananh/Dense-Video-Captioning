@@ -1,3 +1,5 @@
+# DENSE VIDEO CAPTIONING MODEL
+
 [[paper]](https://arxiv.org/abs/2108.07781) 
 **This repo supports:**
 * two video captioning tasks: dense video captioning and video paragraph captioning
