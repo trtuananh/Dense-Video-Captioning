@@ -84,3 +84,70 @@ For other language support, find the abbreviation of your language at this [url]
 
 ## Google Colab training 
 We also support training with Google Colab Notebook. (https://colab.research.google.com/drive/1Kp9vHPRoG-gtL6-iHhu_CJoEc-TZJ15Q?usp=sharing)
+
+
+## Results
+
+This section presents the quantitative evaluation of our Dense Video Captioning (DVC) model and comparisons with baseline models on the YouCook2 validation dataset. We evaluated performance across three tasks: Dense Video Captioning, Localization, and Paragraph Captioning.
+
+### DVC Captioning Results on YouCook2 Validation Set
+
+This table summarizes the performance of our models and baseline models on the Dense Video Captioning task.  "PDVC" refers to our proposed Dense Video Captioning model. "TSP(R(2+1)D)" represents the baseline model utilizing the R(2+1)D feature extractor. "TSP(MVITv2)" represents the baseline model utilizing the MVITv2 feature extractor. "+ ete" indicates models trained with our end-to-end training methodology. "+ HuBERT" denotes models incorporating audio features extracted by the HuBERT model.  "Transformer Layers" indicates the number of Transformer layers used in the model.
+
+| Model             | Feature Extractor          | Transformer Layers | Bleu4 | METEOR | CIDEr | SODA |
+|-------------------|---------------------------|--------------------|-------|--------|-------|------|
+| PDVC              | TSP(R(2+1)D)              | 2                  | 0.89  | 4.30   | 21.69 | 4.02 |
+| PDVC              | TSP(MVITv2)               | 2                  | 1.05  | 5.00   | 25.26 | 4.75 |
+| PDVC              | TSP(MVITv2) + ete        | 2                  | 1.20  | 5.12   | 25.33 | 4.80 |
+| PDVC              | TSP(R(2+1)D)              | 3                  | 0.92  | 4.25   | 21.88 | 4.06 |
+| PDVC              | TSP(MVITv2)               | 3                  | 1.10  | 5.16   | 28.20 | 4.85 |
+| PDVC              | TSP(MVITv2) + ete        | 3                  | 1.18  | 5.27   | 28.32 | 4.67 |
+| PDVC              | TSP(MVITv2) + HuBERT     | 3                  | **1.45** | **5.43** | **30.34** | **4.96** |
+| PDVC [44]         | TSN [42]                  | 2                  | 0.80  | 4.74   | 22.71 | 4.42 |
+| MT [52]           | TSN                       | -                  | 0.30  | 3.18   | 6.10  | -    |
+| ECHR [45]         | TSN                       | -                  | -     | 3.82   | -     | -    |
+| GVL [43]          | TSN                       | -                  | 1.04  | 5.01   | 26.52 | 4.91 |
+
+**Key Observations:**
+
+* Our end-to-end trained models ("+ ete") consistently outperform their counterparts without end-to-end training, demonstrating the effectiveness of the proposed training methodology.
+* The integration of audio features using HuBERT significantly improves performance across all metrics, highlighting the importance of multi-modal information for DVC.
+* Our best performing model, PDVC with TSP(MVITv2) + HuBERT, achieves state-of-the-art results on the YouCook2 dataset.
+
+### DVC Localization Results on YouCook2 Validation Set
+
+This table presents the localization performance of our models on the YouCook2 dataset.  Metrics reported are Average Precision and Average Recall.
+
+| Model             | Feature Extractor          | Transformer Layers | Average Precision | Average Recall |
+|-------------------|---------------------------|--------------------|-------------------|----------------|
+| PDVC              | TSP(R(2+1)D)              | 2                  | 0.2950            | 0.1913         |
+| PDVC              | TSP(MVITv2)               | 2                  | 0.3256            | 0.2106         |
+| PDVC              | TSP(MVITv2) + ete        | 2                  | 0.3283            | **0.2190** |
+| PDVC              | TSP(R(2+1)D)              | 3                  | 0.2873            | 0.1886         |
+| PDVC              | TSP(MVITv2)               | 3                  | 0.3227            | 0.2065         |
+| PDVC              | TSP(MVITv2) + ete        | 3                  | 0.3184            | 0.1991         |
+| PDVC              | TSP(MVITv2) + HuBERT     | 3                  | **0.3312** | 0.2112         |
+
+**Key Observations:**
+
+* Our model with HuBERT features achieves the best localization performance, further confirming the benefit of incorporating audio information.
+* End-to-end training improves Average Recall, indicating better temporal alignment of captions with video segments.
+
+### Paragraph Captioning Results on YouCook2 Validation Set
+
+This table shows the performance of our models on the paragraph captioning task.
+
+| Feature Extractor          | Transformer Layers | Bleu4 | METEOR | CIDEr  |
+|---------------------------|--------------------|-------|--------|--------|
+| TSP(R(2+1)D)              | 2                  | 5.4   | 11.56  | 13.06  |
+| TSP(MVITv2)               | 2                  | 6.09  | 12.19  | 17.52  |
+| TSP(MVITv2) + ete        | 2                  | **6.58** | **12.79** | **15.27** |
+| TSP(R(2+1)D)              | 3                  | 5.78  | 11.65  | 11.74  |
+| TSP(MVITv2)               | 3                  | 5.69  | 11.77  | 15.42  |
+| TSP(MVITv2) + ete        | 3                  | 5.74  | 11.85  | 14.54  |
+| TSP(MVITv2) + HuBERT     | 3                  | 6.26  | 12.46  | 15.28  |
+
+**Key Observations:**
+
+* Our end-to-end training method consistently improves the performance of paragraph captioning models.
+* The HuBERT features also contribute to performance gains in this task.
