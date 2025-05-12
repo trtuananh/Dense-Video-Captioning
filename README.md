@@ -23,7 +23,7 @@ Environment: Linux,  GCC>=5.4, CUDA == 11.7, Python>=3.7, PyTorch>=2.0.0
 
 1. Clone the repo
 ```bash
-git clone --recursive https://github.com/Tien-Nam-Nguyen/Thesis
+git clone --recursive https://github.com/trtuananh/Dense-Video-Captioning.git
 ```
 
 2. Create virtual environment by conda
